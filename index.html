@@ -26,6 +26,7 @@
         <!-- Custom styles for this template -->
         <link href="css/style.css" rel="stylesheet">
 
+        <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
 
 
         <!-- HTML5 shim and Respond.js IE8 support of HTML5 tooltipss and media queries -->
@@ -276,6 +277,7 @@
                     <div class="col-sm-12 text-center">
                         <h3 class="title">Projects</h3>
                         <p class="text-muted sub-title">Proyectos que han sido creados utilizando NRLR que pueden servirte en tu camino de desarrollo</p>
+                        <p>{{ message }}</p>
                     </div>
                 </div> <!-- end row -->
 
@@ -288,7 +290,7 @@
                             <article class="pricing-column col-lg-4 col-md-4">
                                 <div class="inner-box">
                                     <div class="plan-header text-center">
-                                        <h3 class="plan-title">Ragular</h3>
+                                        <h3 class="plan-title">Regular</h3>
                                         <h2 class="plan-price">$24</h2>
                                         <div class="plan-duration">Per License</div>
                                     </div>
@@ -468,5 +470,20 @@ Legal &amp; Privacy
             })
         </script>
 
+        <script src="https://www.gstatic.com/firebasejs/5.5.6/firebase.js"></script>
+        <script>
+          // Initialize Firebase
+          var config = {
+            apiKey: "AIzaSyA9VPuw1dzHV_t2Htg-ulLRTiDEWHDLf9s",
+            authDomain: "noreinventeslarueda-b0e76.firebaseapp.com",
+            databaseURL: "https://noreinventeslarueda-b0e76.firebaseio.com",
+            projectId: "noreinventeslarueda-b0e76",
+            storageBucket: "noreinventeslarueda-b0e76.appspot.com",
+            messagingSenderId: "746004176083"
+          };
+          firebase.initializeApp(config);
+        </script>
+
+        <script src="js/app.js"></script>
     </body>
 </html>
