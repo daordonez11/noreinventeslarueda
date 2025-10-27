@@ -1,0 +1,854 @@
+openapi: 3.1.0
+info:
+  title: No Reinventes la Rueda - Tech Library API
+  version: 1.0.0
+  description: API for technology library recommendations with community voting
+  contact:
+    name: API Support
+    url: https://github.com/daordonez11/noreinventeslarueda
+
+servers:
+  - url: https://api.noreinventeslarueda.dev
+    description: Production
+  - url: http://localhost:3000/api
+    description: Local Development
+
+tags:
+  - name: Libraries
+    description: Technology library operations
+  - name: Categories
+    description: Technology category operations
+  - name: Search
+    description: Search across libraries
+  - name: Votes
+    description: Community voting operations
+  - name: Health
+    description: API health and status
+
+# ============================================================================
+# PATHS
+# ============================================================================
+
+paths:
+  /health:
+    get:
+      summary: API Health Check
+      operationId: getHealth
+      tags:
+        - Health
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  timestamp:
+                    type: string
+                    format: date-time
+                required:
+                  - status
+                  - timestamp
+
+  /categories:
+    get:
+      summary: List all technology categories
+      operationId: listCategories
+      tags:
+        - Categories
+      description: Get all available technology categories ordered for display
+      parameters:
+        - name: locale
+          in: query
+          description: Language locale for category names (es or en)
+          schema:
+            type: string
+            enum: [es, en]
+            default: es
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        description: Total number of categories
+                required:
+                  - data
+                  - meta
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /libraries:
+    get:
+      summary: List libraries with pagination and filtering
+      operationId: listLibraries
+      tags:
+        - Libraries
+      description: |
+        Get paginated list of libraries filtered by category and sorted by curation score.
+        Supports real-time vote counts and deprecation status.
+      parameters:
+        - name: categoryId
+          in: query
+          description: Filter by category ID
+          schema:
+            type: string
+            format: uuid
+        - name: categorySlug
+          in: query
+          description: Filter by category slug (e.g., "frontend", "backend")
+          schema:
+            type: string
+        - name: includeDeprecated
+          in: query
+          description: Include deprecated libraries in results
+          schema:
+            type: boolean
+            default: false
+        - name: sortBy
+          in: query
+          description: Sort field and direction
+          schema:
+            type: string
+            enum: [curation_score, community_votes, stars, last_updated]
+            default: curation_score
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            minimum: 10
+            maximum: 100
+            default: 20
+        - name: locale
+          in: query
+          description: Language for descriptions
+          schema:
+            type: string
+            enum: [es, en]
+            default: es
+      responses:
+        '200':
+          description: Paginated library list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Library'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      filtered:
+                        type: integer
+                required:
+                  - data
+                  - pagination
+                  - meta
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /libraries/{id}:
+    get:
+      summary: Get library details
+      operationId: getLibrary
+      tags:
+        - Libraries
+      description: Retrieve full details for a single library including all metadata
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Library ID (UUID)
+          schema:
+            type: string
+            format: uuid
+        - name: locale
+          in: query
+          description: Language for descriptions
+          schema:
+            type: string
+            enum: [es, en]
+            default: es
+      responses:
+        '200':
+          description: Library details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LibraryDetail'
+                required:
+                  - data
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /search:
+    get:
+      summary: Full-text search across libraries
+      operationId: searchLibraries
+      tags:
+        - Search
+      description: |
+        Search for libraries by name, description, or category using full-text search.
+        Results ranked by relevance and curation score.
+        Supports SC-003 requirement: <500ms response time.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query (minimum 2 characters)
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: categoryId
+          in: query
+          description: Optionally filter search results to category
+          schema:
+            type: string
+            format: uuid
+        - name: categorySlug
+          in: query
+          description: Optionally filter by category slug
+          schema:
+            type: string
+        - name: includeDeprecated
+          in: query
+          description: Include deprecated libraries in results
+          schema:
+            type: boolean
+            default: false
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Results per page
+          schema:
+            type: integer
+            minimum: 5
+            maximum: 50
+            default: 20
+        - name: locale
+          in: query
+          description: Language for descriptions
+          schema:
+            type: string
+            enum: [es, en]
+            default: es
+      responses:
+        '200':
+          description: Search results ranked by relevance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Library'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  meta:
+                    type: object
+                    properties:
+                      query:
+                        type: string
+                      total:
+                        type: integer
+                      executionTimeMs:
+                        type: number
+                        description: Query execution time in milliseconds (for perf tracking)
+                required:
+                  - data
+                  - pagination
+                  - meta
+        '400':
+          description: Invalid search query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Search query too short (minimum 2 characters)"
+                code: INVALID_QUERY
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /votes:
+    post:
+      summary: Cast or update a vote on a library
+      operationId: castVote
+      tags:
+        - Votes
+      description: |
+        Upvote or downvote a library. Requires authentication.
+        Uses upsert pattern: if user already voted on this library, their vote is updated.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                libraryId:
+                  type: string
+                  format: uuid
+                  description: Library ID to vote on
+                value:
+                  type: integer
+                  enum: [1, -1]
+                  description: 1 for upvote, -1 for downvote
+              required:
+                - libraryId
+                - value
+      responses:
+        '200':
+          description: Vote cast/updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Vote'
+                  message:
+                    type: string
+                    enum: [vote_created, vote_updated]
+                required:
+                  - data
+                  - message
+        '400':
+          description: Invalid vote value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Vote value must be 1 (upvote) or -1 (downvote)"
+                code: INVALID_VOTE_VALUE
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Library not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Library not found"
+                code: LIBRARY_NOT_FOUND
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /votes/{libraryId}:
+    get:
+      summary: Get vote stats for a library
+      operationId: getLibraryVotes
+      tags:
+        - Votes
+      description: Get vote count and breakdown for a library
+      parameters:
+        - name: libraryId
+          in: path
+          required: true
+          description: Library ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Vote statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      libraryId:
+                        type: string
+                        format: uuid
+                      upvotes:
+                        type: integer
+                      downvotes:
+                        type: integer
+                      total:
+                        type: integer
+                      userVote:
+                        type: integer
+                        enum: [1, -1, null]
+                        description: Current user's vote (null if not voted or not authenticated)
+                    required:
+                      - libraryId
+                      - upvotes
+                      - downvotes
+                      - total
+                required:
+                  - data
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Remove a vote
+      operationId: removeVote
+      tags:
+        - Votes
+      description: Remove the authenticated user's vote from a library
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: libraryId
+          in: path
+          required: true
+          description: Library ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Vote removed successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Vote not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Vote not found"
+                code: VOTE_NOT_FOUND
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+# ============================================================================
+# COMPONENTS
+# ============================================================================
+
+components:
+  schemas:
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+          description: URL-friendly identifier
+          example: frontend
+        name:
+          type: string
+          example: Frameworks Frontend
+        description:
+          type: string
+          example: Librerías y frameworks populares para desarrollo frontend
+        icon:
+          type: string
+          description: Icon name for UI rendering
+          example: react
+        displayOrder:
+          type: integer
+          description: Order for UI display
+      required:
+        - id
+        - slug
+        - name
+        - displayOrder
+
+    Library:
+      type: object
+      description: Basic library information (for lists)
+      properties:
+        id:
+          type: string
+          format: uuid
+        category:
+          $ref: '#/components/schemas/Category'
+        name:
+          type: string
+          example: React
+        description:
+          type: string
+          example: Librería de interfaz de usuario de Meta
+        githubUrl:
+          type: string
+          format: uri
+          example: https://github.com/facebook/react
+        stars:
+          type: integer
+          example: 195000
+        language:
+          type: string
+          example: JavaScript
+        curationScore:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          example: 95.5
+        communityVotesSum:
+          type: integer
+          example: 245
+        deprecatedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Null if active, timestamp if deprecated
+        lastCommitDate:
+          type: string
+          format: date-time
+          example: '2025-10-27T10:30:00Z'
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - category
+        - name
+        - description
+        - githubUrl
+        - stars
+        - curationScore
+        - communityVotesSum
+        - deprecatedAt
+        - createdAt
+
+    LibraryDetail:
+      allOf:
+        - $ref: '#/components/schemas/Library'
+        - type: object
+          properties:
+            forks:
+              type: integer
+              example: 42000
+            githubId:
+              type: integer
+              example: 10639145
+            lastGithubSync:
+              type: string
+              format: date-time
+              example: '2025-10-27T09:15:00Z'
+            updatedAt:
+              type: string
+              format: date-time
+            votes:
+              type: object
+              properties:
+                upvotes:
+                  type: integer
+                downvotes:
+                  type: integer
+                userVote:
+                  type: integer
+                  enum: [1, -1, null]
+              required:
+                - upvotes
+                - downvotes
+
+    Vote:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        libraryId:
+          type: string
+          format: uuid
+        value:
+          type: integer
+          enum: [1, -1]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - libraryId
+        - value
+        - createdAt
+        - updatedAt
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+        hasNextPage:
+          type: boolean
+        hasPreviousPage:
+          type: boolean
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+        - hasNextPage
+        - hasPreviousPage
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+        code:
+          type: string
+          description: Machine-readable error code
+          enum:
+            - INVALID_QUERY
+            - INVALID_VOTE_VALUE
+            - LIBRARY_NOT_FOUND
+            - VOTE_NOT_FOUND
+            - UNAUTHORIZED
+            - RATE_LIMITED
+            - INTERNAL_SERVER_ERROR
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - error
+        - code
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Invalid request"
+            code: "INVALID_QUERY"
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Unauthorized - valid Bearer token required"
+            code: "UNAUTHORIZED"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Resource not found"
+            code: "NOT_FOUND"
+
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per minute
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests in current window
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Unix timestamp when limit resets
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Rate limit exceeded: 100 requests per minute"
+            code: "RATE_LIMITED"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Internal server error"
+            code: "INTERNAL_SERVER_ERROR"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        NextAuth.js JWT token. Obtained via OAuth login (GitHub/Google).
+        Include in Authorization header: `Authorization: Bearer <token>`
+
+# ============================================================================
+# RATE LIMITING & PERFORMANCE TARGETS
+# ============================================================================
+
+x-rate-limits:
+  unauthenticated:
+    endpoints: [GET /libraries, GET /categories, GET /search]
+    limit: 100 requests per minute per IP
+  authenticated:
+    endpoints: [POST /votes, DELETE /votes/{libraryId}]
+    limit: 500 requests per minute per user
+  search:
+    endpoint: GET /search
+    target: <500ms (p95)
+    description: See research.md Section 2 for caching strategy
+
+x-performance-targets:
+  GET /libraries:
+    target: <200ms (p95)
+    caching: 1 hour ISR
+    reason: Read-heavy, changes monthly with GitHub sync
+  GET /search:
+    target: <500ms (p95)
+    caching: 24 hour Redis cache
+    reason: Full-text search is compute-intensive
+  POST /votes:
+    target: <100ms (p95)
+    caching: None
+    reason: Real-time writes must be immediate
+  GET /categories:
+    target: <100ms (p95)
+    caching: Immutable
+    reason: Categories rarely change
+
+# ============================================================================
+# PAGINATION & FILTERING
+# ============================================================================
+
+x-filtering-strategy:
+  description: All list endpoints support consistent filtering and sorting
+  sort_options:
+    - field: curation_score
+      default: true
+      description: Weighted ranking score (stars + votes + freshness)
+    - field: community_votes
+      description: Sum of upvotes - downvotes
+    - field: stars
+      description: GitHub star count
+    - field: last_updated
+      description: Last commit date from GitHub
+  
+  filters:
+    categoryId: "UUID filter - exact match"
+    categorySlug: "String filter - slug match (e.g., 'frontend')"
+    includeDeprecated: "Boolean - include/exclude deprecated libraries"
+    locale: "Language for localized text (es or en)"
+
+x-pagination:
+  description: All list endpoints support cursor-free offset pagination
+  default_limit: 20
+  max_limit: 100
+  min_limit: 10
+
+# ============================================================================
+# INTERNATIONALIZATION
+# ============================================================================
+
+x-i18n:
+  supported_locales:
+    - code: es
+      description: Spanish (primary language)
+    - code: en
+      description: English (fallback)
+  
+  localized_fields:
+    Category:
+      - name_es / name_en
+      - description_es / description_en
+    Library:
+      - description_es / description_en
+  
+  fallback_strategy: "If requested locale unavailable, fallback to English, then Spanish"
+  implementation: "See research.md Section 4 for next-intl setup"
+
+# ============================================================================
+# IMPLEMENTATION NOTES
+# ============================================================================
+
+x-implementation-notes:
+  framework: "Next.js 14 API routes (app/api/)"
+  auth: "NextAuth.js v4 with GitHub/Google OAuth"
+  database: "PostgreSQL with Prisma ORM (see data-model.md)"
+  validation: "Zod for request/response schema validation"
+  logging: "Structured logging with JSON output"
+  monitoring: "PostHog events for analytics (research.md Section 3)"
+  testing: "Contract tests via Prism mock server"
+
+x-next-steps:
+  - Implement routes in app/api/ following this spec
+  - Generate TypeScript types from this schema
+  - Set up Prism mock server for frontend development
+  - Create contract tests validating responses against schema
