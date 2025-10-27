@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication with OAuth providers
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  oauthProvider String    // 'github' | 'google'
+  oauthId       String    // Provider-specific user ID
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  votes         Vote[]
+
+  // Unique constraint for OAuth account
+  @@unique([oauthProvider, oauthId], name: "unique_oauth_account")
+  @@index([email])
+  @@index([oauthProvider, oauthId])
+  @@map("User")
+}
+
+// Category model for organizing libraries
+model Category {
+  id             String    @id @default(cuid())
+  slug           String    @unique // 'frontend', 'backend', 'databases'
+  nameEs         String    // Spanish name
+  nameEn         String    // English name
+  descriptionEs  String?   // Spanish description
+  descriptionEn  String?   // English description
+  icon           String?   // Icon name for UI
+  displayOrder   Int       @default(0) // For ordering in UI
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  libraries      Library[]
+
+  @@unique([slug])
+  @@index([displayOrder])
+  @@map("Category")
+}
+
+// Library model for technologies/frameworks
+model Library {
+  id                String    @id @default(cuid())
+  categoryId        String
+  name              String
+  descriptionEs     String    // Spanish description
+  descriptionEn     String?   // English translation
+  githubUrl         String    @unique // https://github.com/owner/repo
+  githubId          BigInt?   @unique // GitHub repository ID
+  stars             Int       @default(0) // Last synced star count
+  forks             Int       @default(0) // Last synced fork count
+  language          String?   // Primary language
+  lastCommitDate    DateTime? // Last commit from GitHub
+  lastGithubSync    DateTime? // When we last updated from GitHub
+  
+  // Ranking & Curation
+  curationScore     Float     @default(0.0) // Weighted score (0-100)
+  communityVotesSum Int       @default(0)   // Cached upvotes - downvotes
+  deprecatedAt      DateTime? // NULL if active
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  category          Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  votes             Vote[]
+
+  @@index([categoryId])
+  @@index([curationScore(sort: Desc)])
+  @@index([deprecatedAt])
+  @@index([lastCommitDate(sort: Desc)])
+  @@fulltext([name, descriptionEs]) // Full-text search index
+  @@map("Library")
+}
+
+// Vote model for user voting on libraries
+model Vote {
+  id          String    @id @default(cuid())
+  userId      String
+  libraryId   String
+  value       Int       // +1 for upvote, -1 for downvote
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  library     Library   @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+
+  // Unique constraint: one vote per user per library
+  @@unique([userId, libraryId], name: "unique_user_library_vote")
+  @@index([userId])
+  @@index([libraryId])
+  @@index([createdAt(sort: Desc)])
+  @@map("Vote")
+}
