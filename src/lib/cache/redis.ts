@@ -1,28 +1,28 @@
 import { createClient } from 'redis';
 
-let redisClient: ReturnType<typeof createClient> | null = null;
+let _redisInstance: ReturnType<typeof createClient> | null = null;
 
 async function getRedisClient() {
-  if (redisClient) {
-    return redisClient;
+  if (_redisInstance) {
+    return _redisInstance;
   }
 
   const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
-  redisClient = createClient({ url });
+  _redisInstance = createClient({ url });
 
-  redisClient.on('error', () => {
+  _redisInstance.on('error', () => {
     // Handle error silently - will be caught in get/set/del calls
   });
 
-  redisClient.on('connect', () => {
+  _redisInstance.on('connect', () => {
     // Connected
   });
 
-  await redisClient.connect();
-  return redisClient;
+  await _redisInstance.connect();
+  return _redisInstance;
 }
 
-export const redis = {
+export const redisClient = {
   async get<T>(key: string): Promise<T | null> {
     try {
       const client = await getRedisClient();
@@ -89,9 +89,9 @@ export const redis = {
   },
 
   async disconnect(): Promise<void> {
-    if (redisClient) {
-      await redisClient.quit();
-      redisClient = null;
+    if (_redisInstance) {
+      await _redisInstance.quit();
+      _redisInstance = null;
     }
   },
 };
