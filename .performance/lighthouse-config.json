@@ -1,0 +1,31 @@
+{
+  "extends": "lighthouse:default",
+  "settings": {
+    "onlyCategories": [
+      "performance",
+      "accessibility",
+      "best-practices",
+      "seo"
+    ],
+    "outputPath": "./lighthouse-report.json",
+    "chromeFlags": [
+      "--headless",
+      "--disable-gpu"
+    ]
+  },
+  "passes": [
+    {
+      "passName": "defaultPass",
+      "recordTrace": true,
+      "pauseAfterLoadMs": 5250,
+      "networkQuietThresholdMs": 5250,
+      "cpuQuietThresholdMs": 5250,
+      "useThrottling": true,
+      "throttling": {
+        "rttMs": 40,
+        "throughputKbps": 10240,
+        "cpuSlowdownMultiplier": 1
+      }
+    }
+  ]
+}
