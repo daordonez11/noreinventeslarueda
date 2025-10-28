@@ -45,6 +45,10 @@ export const LibraryCard: React.FC<LibraryCardProps> = ({
   }
 
   const hoverVariants = {
+    rest: {
+      scale: 1,
+      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+    },
     hover: {
       scale: 1.02,
       boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
@@ -70,61 +74,62 @@ export const LibraryCard: React.FC<LibraryCardProps> = ({
   return (
     <Link href={`/libraries/${id}`}>
       <motion.div
-        className="bg-white rounded-lg shadow-sm p-5 h-full cursor-pointer border border-gray-200 hover:border-blue-400 relative"
+        className="bg-gradient-to-br from-white to-slate-50 rounded-xl shadow-sm p-5 h-full cursor-pointer border border-brand-200/40 hover:border-brand-400 hover:shadow-lg transition-all hover:bg-gradient-to-br hover:from-brand-50 hover:to-brand-50/30 relative"
         initial="hidden"
-        animate="visible"
+        whileInView="visible"
         whileHover="hover"
         variants={{ ...cardVariants, ...hoverVariants }}
+        viewport={{ once: true, margin: '-100px' }}
         data-testid="library-card"
       >
         {/* Deprecated Badge */}
         {deprecatedAt && (
-          <div className="absolute top-3 right-3 bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-1 rounded">
+          <div className="absolute top-3 right-3 bg-orange-100 text-orange-800 text-xs font-semibold px-3 py-1 rounded-full border border-orange-200">
             {locale === 'es' ? 'Deprecado' : 'Deprecated'}
           </div>
         )}
 
         {/* Title */}
-        <h3 className="text-lg font-bold text-gray-900 mb-2 pr-24">{name}</h3>
+        <h3 className="text-lg font-bold text-slate-900 mb-2 pr-24">{name}</h3>
 
         {/* Description */}
-        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{description}</p>
+        <p className="text-slate-600 text-sm mb-4 line-clamp-2">{description}</p>
 
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 text-xs">
           {/* Stars */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2 bg-slate-100/50 rounded-lg px-2 py-1.5">
             <span>⭐</span>
-            <span className="font-semibold text-gray-900">{stars.toLocaleString()}</span>
+            <span className="font-semibold text-slate-900">{stars.toLocaleString()}</span>
           </div>
 
           {/* Forks */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2 bg-slate-100/50 rounded-lg px-2 py-1.5">
             <span>🍴</span>
-            <span className="font-semibold text-gray-900">{forks.toLocaleString()}</span>
+            <span className="font-semibold text-slate-900">{forks.toLocaleString()}</span>
           </div>
 
           {/* Community Votes */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2 bg-brand-100/50 rounded-lg px-2 py-1.5">
             <span>👍</span>
-            <span className="font-semibold text-gray-900">{communityVotesSum}</span>
+            <span className="font-semibold text-brand-700">{communityVotesSum}</span>
           </div>
 
           {/* Language */}
           {language && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2 bg-accent-cyan/10 rounded-lg px-2 py-1.5">
               <span>🔤</span>
-              <span className="font-semibold text-gray-900">{language}</span>
+              <span className="font-semibold text-slate-900">{language}</span>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between items-center text-xs text-gray-500 pt-3 border-t border-gray-100">
+        <div className="flex justify-between items-center text-xs text-slate-600 pt-3 border-t border-slate-200">
           {lastCommitDate && (
             <span>{locale === 'es' ? 'Actualizado' : 'Updated'}: {formatDate(lastCommitDate)}</span>
           )}
-          <span className="text-blue-600 font-semibold">→</span>
+          <span className="text-brand-600 font-semibold">→</span>
         </div>
       </motion.div>
     </Link>

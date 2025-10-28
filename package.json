@@ -21,6 +21,7 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@octokit/rest": "^20.0.0",
     "@prisma/client": "^5.7.0",
     "framer-motion": "^10.16.0",

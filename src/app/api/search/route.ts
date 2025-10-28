@@ -118,8 +118,16 @@ export async function GET(request: NextRequest) {
       communityVotesSum: lib.communityVotesSum,
     }))
 
+    // Generate suggestions (top 5 results)
+    const suggestions = libraries.slice(0, 5).map((lib: any) => ({
+      id: lib.id,
+      name: lib.name,
+      category: locale === 'en' ? lib.category.nameEn : lib.category.nameEs,
+    }))
+
     const result = {
       results: response,
+      suggestions,
       pagination: {
         page,
         limit,

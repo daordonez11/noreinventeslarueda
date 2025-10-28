@@ -72,20 +72,22 @@ export default async function Home({
 
   return (
     <Layout locale={locale}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            {trans.categories.title}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        {/* Hero Section */}
+        <div className="text-center mb-16">
+          <h1 className="text-5xl md:text-6xl font-bold mb-6">
+            <span className="bg-gradient-to-r from-brand-400 via-accent-cyan to-brand-300 bg-clip-text text-transparent">
+              {trans.categories.title}
+            </span>
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-xl md:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
             {trans.categories.subtitle}
           </p>
         </div>
 
         {/* Category Grid */}
         {categories.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-20">
             {categories
               .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
               .map((category, index) => (
@@ -101,86 +103,88 @@ export default async function Home({
               ))}
           </div>
         ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-600 text-lg">{trans.categories.noCategories}</p>
+          <div className="text-center py-20">
+            <p className="text-slate-600 text-lg">{trans.categories.noCategories}</p>
           </div>
         )}
 
         {/* About Section */}
-        <div id="about" className="mt-16 py-12 border-t border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div id="about" className="mt-24 py-16 border-t border-slate-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             {/* Left Column */}
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              <h2 className="text-4xl font-bold mb-6 text-slate-900">
                 {locale === 'es' ? '¿Qué es No Reinventes la Rueda?' : 'What is No Reinvent the Wheel?'}
               </h2>
-              <p className="text-gray-600 mb-4 leading-relaxed">
-                {locale === 'es'
-                  ? 'Es una plataforma moderna diseñada para ayudarte a descubrir las mejores librerías y frameworks de tecnología. Agregamos repositorios populares de GitHub y permitimos que la comunidad vote por sus favoritas.'
-                  : 'It is a modern platform designed to help you discover the best technology libraries and frameworks. We aggregate popular repositories from GitHub and allow the community to vote for their favorites.'}
-              </p>
-              <p className="text-gray-600 leading-relaxed">
-                {locale === 'es'
-                  ? 'Nuestro algoritmo de curación combina datos de GitHub (estrellas, bifurcaciones, actividad reciente) con los votos de la comunidad para ofrecerte las recomendaciones más relevantes y actualizadas.'
-                  : 'Our curation algorithm combines GitHub data (stars, forks, recent activity) with community votes to bring you the most relevant and up-to-date recommendations.'}
-              </p>
+              <div className="space-y-4 text-slate-600">
+                <p className="leading-relaxed text-lg">
+                  {locale === 'es'
+                    ? 'Es una plataforma moderna diseñada para ayudarte a descubrir las mejores librerías y frameworks de tecnología. Agregamos repositorios populares de GitHub y permitimos que la comunidad vote por sus favoritas.'
+                    : 'It is a modern platform designed to help you discover the best technology libraries and frameworks. We aggregate popular repositories from GitHub and allow the community to vote for their favorites.'}
+                </p>
+                <p className="leading-relaxed text-lg">
+                  {locale === 'es'
+                    ? 'Nuestro algoritmo de curación combina datos de GitHub (estrellas, bifurcaciones, actividad reciente) con los votos de la comunidad para ofrecerte las recomendaciones más relevantes y actualizadas.'
+                    : 'Our curation algorithm combines GitHub data (stars, forks, recent activity) with community votes to bring you the most relevant and up-to-date recommendations.'}
+                </p>
+              </div>
             </div>
 
-            {/* Right Column */}
-            <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-8">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">
+            {/* Right Column - Modern Card */}
+            <div className="bg-gradient-to-br from-brand-500/10 via-accent-cyan/5 to-brand-500/5 rounded-2xl p-10 border border-brand-200/50 backdrop-blur-sm">
+              <h3 className="text-3xl font-bold mb-8 text-slate-900">
                 {locale === 'es' ? 'Características clave' : 'Key features'}
               </h3>
-              <ul className="space-y-4">
-                <li className="flex gap-3">
-                  <span className="text-2xl">🔍</span>
+              <ul className="space-y-6">
+                <li className="flex gap-4 group">
+                  <span className="text-3xl transform group-hover:scale-125 transition-transform duration-300">🔍</span>
                   <div>
-                    <h4 className="font-semibold text-gray-900">
+                    <h4 className="font-bold text-slate-900 text-lg mb-1">
                       {locale === 'es' ? 'Búsqueda Inteligente' : 'Smart Search'}
                     </h4>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-slate-600">
                       {locale === 'es'
                         ? 'Encuentra las librerías perfectas en segundos'
                         : 'Find the perfect libraries in seconds'}
                     </p>
                   </div>
                 </li>
-                <li className="flex gap-3">
-                  <span className="text-2xl">⭐</span>
+                <li className="flex gap-4 group">
+                  <span className="text-3xl transform group-hover:scale-125 transition-transform duration-300">⭐</span>
                   <div>
-                    <h4 className="font-semibold text-gray-900">
-                      {locale === 'es' ? 'Datos de GitHub' : 'GitHub Data'}
+                    <h4 className="font-bold text-slate-900 text-lg mb-1">
+                      {locale === 'es' ? 'Ranking Comunitario' : 'Community Ranking'}
                     </h4>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-slate-600">
                       {locale === 'es'
-                        ? 'Estadísticas actualizadas automáticamente'
-                        : 'Statistics automatically updated'}
+                        ? 'Votos de desarrolladores como tú'
+                        : 'Votes from developers like you'}
                     </p>
                   </div>
                 </li>
-                <li className="flex gap-3">
-                  <span className="text-2xl">👍</span>
+                <li className="flex gap-4 group">
+                  <span className="text-3xl transform group-hover:scale-125 transition-transform duration-300">�</span>
                   <div>
-                    <h4 className="font-semibold text-gray-900">
-                      {locale === 'es' ? 'Votación Comunitaria' : 'Community Voting'}
+                    <h4 className="font-bold text-slate-900 text-lg mb-1">
+                      {locale === 'es' ? 'Métricas en Vivo' : 'Live Metrics'}
                     </h4>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-slate-600">
                       {locale === 'es'
-                        ? 'Vota por tus librerías favoritas'
-                        : 'Vote for your favorite libraries'}
+                        ? 'Datos actualizados desde GitHub'
+                        : 'Live data from GitHub'}
                     </p>
                   </div>
                 </li>
-                <li className="flex gap-3">
-                  <span className="text-2xl">🌐</span>
+                <li className="flex gap-4 group">
+                  <span className="text-3xl transform group-hover:scale-125 transition-transform duration-300">�</span>
                   <div>
-                    <h4 className="font-semibold text-gray-900">
-                      {locale === 'es' ? 'Español e Inglés' : 'Spanish & English'}
+                    <h4 className="font-bold text-slate-900 text-lg mb-1">
+                      {locale === 'es' ? 'Recomendaciones' : 'Recommendations'}
                     </h4>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-slate-600">
                       {locale === 'es'
-                        ? 'Disponible en dos idiomas'
-                        : 'Available in both languages'}
+                        ? 'Curaciones personalizadas'
+                        : 'Personalized recommendations'}
                     </p>
                   </div>
                 </li>
