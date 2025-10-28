@@ -92,7 +92,6 @@ async function getCategoryLibraries(
       librariesRef,
       where('categoryId', '==', categoryId),
       where('deprecatedAt', '==', null),
-      orderBy('curationScore', 'desc'),
       limit(20)
     )
     const librariesSnapshot = await getDocs(librariesQuery)
@@ -109,8 +108,10 @@ async function getCategoryLibraries(
         lastCommitDate: data.lastCommitDate?.toDate?.()?.toISOString?.() || data.lastCommitDate,
         communityVotesSum: data.communityVotesSum || 0,
         deprecatedAt: data.deprecatedAt,
+        curationScore: data.curationScore || 0,
       }
     })
+    .sort((a, b) => b.stars - a.stars) // Sort by stars in JavaScript
 
     const category = {
       id: categoryDoc.id,
