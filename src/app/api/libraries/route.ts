@@ -1,118 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { db } from '@/lib/firebase/config'
+import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore'
+import { COLLECTIONS } from '@/lib/firebase/collections'
 
-const prisma = new PrismaClient()
+export const revalidate = 3600
 
-export const revalidate = 3600 // ISR: revalidate every hour
-
-/**
- * GET /api/libraries
- * Query libraries with filters, sorting, and pagination
- */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = request.nextUrl
+    const searchParams = request.nextUrl.searchParams
+    const categorySlug = searchParams.get('category')
+    const sortBy = searchParams.get('sort') || 'stars'
+    const limitNum = parseInt(searchParams.get('limit') || '20')
 
-    // Parse query parameters
-    const categoryId = searchParams.get('categoryId')
-    const categorySlug = searchParams.get('categorySlug')
-    const includeDeprecated = searchParams.get('includeDeprecated') === 'true'
-    const sort = searchParams.get('sort') ?? 'curation_score' // curation_score, community_votes, stars, last_updated
-    const page = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '20')))
-    const locale = searchParams.get('locale') ?? 'es'
+    let librariesQuery = query(collection(db, COLLECTIONS.LIBRARIES))
 
-    // Build where clause
-    const where: any = {}
+    // Filter by category if provided
+    if (categorySlug) {
+      const categoriesRef = collection(db, COLLECTIONS.CATEGORIES)
+      const categoryQuery = query(categoriesRef, where('slug', '==', categorySlug), limit(1))
+      const categorySnapshot = await getDocs(categoryQuery)
 
-    if (categoryId) {
-      where.categoryId = categoryId
-    } else if (categorySlug) {
-      where.category = {
-        slug: categorySlug,
+      if (!categorySnapshot.empty) {
+        const categoryId = categorySnapshot.docs[0].id
+        librariesQuery = query(
+          collection(db, COLLECTIONS.LIBRARIES),
+          where('categoryId', '==', categoryId),
+          where('deprecatedAt', '==', null),
+          limit(limitNum)
+        )
       }
+    } else {
+      librariesQuery = query(
+        collection(db, COLLECTIONS.LIBRARIES),
+        where('deprecatedAt', '==', null),
+        limit(limitNum)
+      )
     }
 
-    if (!includeDeprecated) {
-      where.deprecatedAt = null
-    }
+    const snapshot = await getDocs(librariesQuery)
+    const libraries = await Promise.all(
+      snapshot.docs.map(async (libDoc) => {
+        const lib = libDoc.data()
+        
+        // Get category name
+        let categoryName = ''
+        if (lib.categoryId) {
+          const categoryDoc = await getDoc(doc(db, COLLECTIONS.CATEGORIES, lib.categoryId))
+          if (categoryDoc.exists()) {
+            categoryName = categoryDoc.data().nameEs
+          }
+        }
 
-    // Determine sort order
-    let orderBy: any = {}
-    switch (sort) {
-      case 'community_votes':
-        orderBy = { communityVotesSum: 'desc' }
-        break
-      case 'stars':
-        orderBy = { stars: 'desc' }
-        break
-      case 'last_updated':
-        orderBy = { lastCommitDate: 'desc' }
-        break
-      case 'curation_score':
-      default:
-        orderBy = { curationScore: 'desc' }
-        break
-    }
-
-    // Query libraries with pagination
-    const [libraries, total] = await Promise.all([
-      prisma.library.findMany({
-        where,
-        orderBy,
-        skip: (page - 1) * limit,
-        take: limit,
-        include: {
-          category: true,
-        },
-      }),
-      prisma.library.count({ where }),
-    ])
-
-    // Transform response
-    const response = libraries.map((lib: any) => ({
-      id: lib.id,
-      name: lib.name,
-      description: locale === 'en' ? lib.descriptionEn : lib.descriptionEs,
-      category: {
-        id: lib.category.id,
-        slug: lib.category.slug,
-        name: locale === 'en' ? lib.category.nameEn : lib.category.nameEs,
-      },
-      githubUrl: lib.githubUrl,
-      stars: lib.stars,
-      forks: lib.forks,
-      language: lib.language,
-      curationScore: lib.curationScore,
-      communityVotesSum: lib.communityVotesSum,
-      lastCommitDate: lib.lastCommitDate,
-      deprecated: !!lib.deprecatedAt,
-    }))
-
-    return NextResponse.json(
-      {
-        libraries: response,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit),
-        },
-      },
-      {
-        status: 200,
-        headers: {
-          'Cache-Control': 'public, max-age=3600',
-        },
-      }
+        return {
+          id: libDoc.id,
+          name: lib.name,
+          description: lib.descriptionEs,
+          stars: lib.stars,
+          forks: lib.forks,
+          language: lib.language,
+          githubUrl: lib.githubUrl,
+          categoryName,
+          communityVotesSum: lib.communityVotesSum || 0,
+        }
+      })
     )
+
+    // Sort in JavaScript
+    const sorted = libraries.sort((a, b) => {
+      if (sortBy === 'stars') return b.stars - a.stars
+      if (sortBy === 'votes') return b.communityVotesSum - a.communityVotesSum
+      return 0
+    })
+
+    return NextResponse.json(sorted)
   } catch (error) {
     console.error('GET /api/libraries error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  } finally {
-    await prisma.$disconnect()
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -1,8 +1,12 @@
 import React from 'react'
 import { Metadata } from 'next'
+import Link from 'next/link'
 import Layout from '@/components/Layout/Layout'
 import CategoryCard from '@/components/CategoryCard'
 import { getTranslation } from '@/lib/i18n/config'
+import { db } from '@/lib/firebase/config'
+import { collection, getDocs, orderBy, query } from 'firebase/firestore'
+import { COLLECTIONS } from '@/lib/firebase/collections'
 
 export const revalidate = 3600 // ISR: revalidate every hour
 
@@ -16,10 +20,6 @@ interface Category {
   _count?: {
     libraries: number
   }
-}
-
-interface CategoriesResponse {
-  data: Category[]
 }
 
 export async function generateMetadata({
@@ -41,22 +41,28 @@ export async function generateMetadata({
   }
 }
 
-async function getCategories(): Promise<Category[]> {
+async function getCategories(locale: 'es' | 'en' = 'es'): Promise<Category[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-    const response = await fetch(`${baseUrl}/api/categories?locale=es`, {
-      next: { revalidate: 3600 },
+    // Fetch directly from Firestore using client SDK
+    const categoriesRef = collection(db, COLLECTIONS.CATEGORIES)
+    const q = query(categoriesRef, orderBy('displayOrder', 'asc'))
+    const categoriesSnapshot = await getDocs(q)
+
+    const categories = categoriesSnapshot.docs.map((doc) => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        slug: data.slug,
+        name: locale === 'en' ? data.nameEn : data.nameEs,
+        description: locale === 'en' ? data.descriptionEn || data.descriptionEs : data.descriptionEs,
+        icon: data.icon || '',
+        displayOrder: data.displayOrder || 0,
+      }
     })
 
-    if (!response.ok) {
-      console.error('Failed to fetch categories:', response.status)
-      return []
-    }
-
-    const data: CategoriesResponse = await response.json()
-    return Array.isArray(data) ? data : data.data || []
+    return categories as Category[]
   } catch (error) {
-    console.error('Error fetching categories:', error)
+    console.error('Error fetching categories from Firestore:', error)
     return []
   }
 }
@@ -68,7 +74,7 @@ export default async function Home({
 }) {
   const locale = (searchParams.locale as 'es' | 'en') || 'es'
   const trans = getTranslation(locale)
-  const categories = await getCategories()
+  const categories = await getCategories(locale)
 
   return (
     <Layout locale={locale}>
@@ -80,9 +86,25 @@ export default async function Home({
               {trans.categories.title}
             </span>
           </h1>
-          <p className="text-xl md:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-xl md:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-8">
             {trans.categories.subtitle}
           </p>
+
+          {/* Call to Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
+            <Link
+              href="/auth/signin"
+              className="px-8 py-4 rounded-xl text-lg font-bold bg-gradient-to-r from-brand-500 to-brand-600 text-white hover:from-brand-600 hover:to-brand-700 shadow-xl shadow-brand-500/30 hover:shadow-brand-500/50 transition-all duration-200 transform hover:scale-105 flex items-center gap-2"
+            >
+              {locale === 'es' ? '🚀 Comenzar Ahora' : '🚀 Get Started'}
+            </Link>
+            <a
+              href="#about"
+              className="px-8 py-4 rounded-xl text-lg font-semibold border-2 border-slate-300 text-slate-700 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50 transition-all duration-200"
+            >
+              {locale === 'es' ? 'Saber Más' : 'Learn More'}
+            </a>
+          </div>
         </div>
 
         {/* Category Grid */}

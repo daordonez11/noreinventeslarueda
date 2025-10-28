@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { ReactNode } from 'react'
 import './globals.css'
+import { AuthProvider } from '@/lib/firebase/auth-context'
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://noreinventeslarueda.dev'),
@@ -62,7 +63,9 @@ export default function RootLayout({
         <link rel="canonical" href="https://noreinventeslarueda.dev" />
         <link rel="icon" href="/favicon.ico" />
       </head>
-      <body className="bg-white dark:bg-slate-950">{children}</body>
+      <body className="bg-white dark:bg-slate-950">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   )
 }

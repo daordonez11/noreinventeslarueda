@@ -1,96 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { db } from '@/lib/firebase/config'
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
+import { COLLECTIONS } from '@/lib/firebase/collections'
 
-const prisma = new PrismaClient()
+export const revalidate = 3600
 
-export const revalidate = 3600 // ISR: revalidate every hour
-
-/**
- * GET /api/libraries/{id}
- * Return single library with detailed information
- */
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const { id } = params
-    const locale = request.nextUrl.searchParams.get('locale') ?? 'es'
 
-    // Fetch library with related data
-    const library = await prisma.library.findUnique({
-      where: { id },
-      include: {
-        category: true,
-        votes: {
-          select: {
-            value: true,
-          },
-        },
-      },
-    })
+    const libraryRef = doc(db, COLLECTIONS.LIBRARIES, id)
+    const libraryDoc = await getDoc(libraryRef)
 
-    if (!library) {
-      return NextResponse.json(
-        { error: 'Library not found' },
-        { status: 404 }
-      )
+    if (!libraryDoc.exists()) {
+      return NextResponse.json({ error: 'Library not found' }, { status: 404 })
     }
 
-    // Calculate vote breakdown
-    interface VoteBreakdown {
-      upvotes: number
-      downvotes: number
-    }
-    const voteBreakdown: VoteBreakdown = library.votes.reduce(
-      (acc: VoteBreakdown, vote: any) => {
-        if (vote.value === 1) acc.upvotes++
-        else if (vote.value === -1) acc.downvotes++
-        return acc
-      },
-      { upvotes: 0, downvotes: 0 }
-    )
+    const libraryData = libraryDoc.data()
 
-    // Transform response
-    const response = {
-      id: library.id,
-      name: library.name,
-      description: locale === 'en' ? library.descriptionEn : library.descriptionEs,
-      githubUrl: library.githubUrl,
-      githubId: library.githubId,
-      stars: library.stars,
-      forks: library.forks,
-      language: library.language,
-      curationScore: library.curationScore,
-      communityVotesSum: library.communityVotesSum,
-      lastCommitDate: library.lastCommitDate,
-      lastGithubSync: library.lastGithubSync,
-      deprecated: !!library.deprecatedAt,
-      category: {
-        id: library.category.id,
-        slug: library.category.slug,
-        name: locale === 'en' ? library.category.nameEn : library.category.nameEs,
-      },
+    // Get category
+    let category = null
+    if (libraryData.categoryId) {
+      const categoryDoc = await getDoc(doc(db, COLLECTIONS.CATEGORIES, libraryData.categoryId))
+      if (categoryDoc.exists()) {
+        const catData = categoryDoc.data()
+        category = {
+          id: categoryDoc.id,
+          slug: catData.slug,
+          name: catData.nameEs,
+        }
+      }
+    }
+
+    // Get votes
+    const votesRef = collection(db, COLLECTIONS.VOTES)
+    const votesQuery = query(votesRef, where('libraryId', '==', id))
+    const votesSnapshot = await getDocs(votesQuery)
+
+    const upvotes = votesSnapshot.docs.filter(doc => doc.data().value === 1).length
+    const downvotes = votesSnapshot.docs.filter(doc => doc.data().value === -1).length
+
+    const library = {
+      id: libraryDoc.id,
+      name: libraryData.name,
+      description: libraryData.descriptionEs,
+      githubUrl: libraryData.githubUrl,
+      stars: libraryData.stars,
+      forks: libraryData.forks,
+      language: libraryData.language,
+      category,
+      communityVotesSum: libraryData.communityVotesSum || 0,
       votes: {
-        upvotes: voteBreakdown.upvotes,
-        downvotes: voteBreakdown.downvotes,
-        total: voteBreakdown.upvotes + voteBreakdown.downvotes,
+        upvotes,
+        downvotes,
+        total: upvotes - downvotes,
       },
     }
 
-    return NextResponse.json(response, {
-      status: 200,
-      headers: {
-        'Cache-Control': 'public, max-age=3600',
-      },
-    })
+    return NextResponse.json(library)
   } catch (error) {
-    console.error('GET /api/libraries/{id} error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  } finally {
-    await prisma.$disconnect()
+    console.error('GET /api/libraries/[id] error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
