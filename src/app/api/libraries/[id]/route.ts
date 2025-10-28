@@ -6,7 +6,7 @@ import { COLLECTIONS } from '@/lib/firebase/collections'
 export const revalidate = 3600
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {

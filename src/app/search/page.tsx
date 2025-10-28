@@ -7,6 +7,8 @@ import Layout from '@/components/Layout/Layout'
 import LibraryCard from '@/components/LibraryCard'
 import SearchBar from '@/components/SearchBar'
 
+export const dynamic = 'force-dynamic'
+
 interface SearchResult {
   id: string
   name: string

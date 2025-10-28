@@ -20,7 +20,7 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
   initialUserVote = null,
   locale = 'es',
 }) => {
-  const { user, firebaseUser } = useAuth()
+  const { user } = useAuth()
   const [upvotes, setUpvotes] = useState(initialUpvotes)
   const [downvotes, setDownvotes] = useState(initialDownvotes)
   const [userVote, setUserVote] = useState<1 | -1 | null>(initialUserVote)
@@ -28,7 +28,7 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
   const [showSignInHint, setShowSignInHint] = useState(false)
 
   const handleVote = async (value: 1 | -1) => {
-    if (!firebaseUser) {
+    if (!user) {
       setShowSignInHint(true)
       setTimeout(() => setShowSignInHint(false), 3000)
       return
@@ -37,8 +37,8 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
     setIsLoading(true)
 
     try {
-      const idToken = await firebaseUser.getIdToken()
-      const userId = firebaseUser.uid
+      const idToken = await user.getIdToken()
+      const userId = user.uid
       
       if (userVote === value) {
         const response = await fetch(`/api/votes/${libraryId}`, {
@@ -62,8 +62,8 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
         }
         setUserVote(null)
       } else {
-        const idToken = await firebaseUser.getIdToken()
-        const userId = firebaseUser.uid
+        const idToken = await user.getIdToken()
+        const userId = user.uid
         
         const response = await fetch('/api/votes', {
           method: 'POST',
@@ -97,7 +97,7 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
   }
 
   const totalVotes = upvotes - downvotes
-  const votingDisabled = !firebaseUser || isLoading
+  const votingDisabled = !user || isLoading
 
   return (
     <div className="flex flex-col gap-2">
@@ -146,7 +146,7 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
       </div>
 
       {/* Sign In Hint */}
-      {showSignInHint && !session?.user && (
+      {showSignInHint && !user && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -168,7 +168,7 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
       )}
 
       {/* Unauthenticated State Message */}
-      {!session?.user && !showSignInHint && (
+      {!!showSignInHint && (
         <p className="text-xs text-slate-500 text-center">
           {locale === 'es'
             ? 'Inicia sesión para votar'
@@ -177,7 +177,7 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
       )}
 
       {/* Authenticated State Message */}
-      {session?.user && userVote === null && (
+      {user && userVote === null && (
         <p className="text-xs text-slate-500 text-center">
           {locale === 'es'
             ? 'Se el primero en votar'
@@ -186,7 +186,7 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
       )}
 
       {/* Your Vote Message */}
-      {session?.user && userVote !== null && (
+      {user && userVote !== null && (
         <p className="text-xs text-green-600 text-center font-medium">
           {locale === 'es'
             ? userVote === 1

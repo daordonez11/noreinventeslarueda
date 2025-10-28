@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/firebase/config'
 import { db } from '@/lib/firebase/config'
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore'
 import { COLLECTIONS } from '@/lib/firebase/collections'
@@ -11,10 +10,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const idToken = authHeader.split('Bearer ')[1]
-    
-    // Verify token on client (you'd normally do this server-side with admin SDK)
-    // For now, we'll trust the token and extract userId from request body
+    // Extract userId from request body
     const { libraryId, value, userId } = await request.json()
 
     if (!libraryId || !userId || (value !== 1 && value !== -1)) {

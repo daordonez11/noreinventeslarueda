@@ -13,7 +13,7 @@ export interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children, locale = 'es' }) => {
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { user, firebaseUser, signOut, loading } = useAuth()
+  const { user, signOut, loading } = useAuth()
 
   const toggleLocale = () => {
     const newLocale = locale === 'es' ? 'en' : 'es'
@@ -71,14 +71,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, locale = 'es' }) => {
               {/* Auth Buttons - Desktop */}
               {!loading && (
                 <>
-                  {firebaseUser ? (
+                  {user ? (
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-500/10 rounded-lg border border-brand-400/20">
                         <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-400 to-accent-cyan flex items-center justify-center text-white text-sm font-bold">
-                          {firebaseUser.displayName?.charAt(0).toUpperCase() || firebaseUser.email?.charAt(0).toUpperCase() || 'U'}
+                          {user.displayName?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
                         </div>
                         <span className="text-slate-200 text-sm font-medium max-w-[120px] truncate">
-                          {firebaseUser.displayName || firebaseUser.email}
+                          {user.displayName || user.email}
                         </span>
                       </div>
                       <button
@@ -151,15 +151,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, locale = 'es' }) => {
               {/* Auth Buttons - Mobile */}
               {!loading && (
                 <div className="pt-2 border-t border-brand-500/10">
-                  {firebaseUser ? (
+                  {user ? (
                     <>
                       <div className="flex items-center gap-2 px-4 py-3 bg-brand-500/10 rounded-md mb-2">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-400 to-accent-cyan flex items-center justify-center text-white text-sm font-bold">
-                          {firebaseUser.displayName?.charAt(0).toUpperCase() || firebaseUser.email?.charAt(0).toUpperCase() || 'U'}
+                          {user.displayName?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-slate-200 text-sm font-medium truncate">
-                            {firebaseUser.displayName || firebaseUser.email}
+                            {user.displayName || user.email}
                           </p>
                         </div>
                       </div>
