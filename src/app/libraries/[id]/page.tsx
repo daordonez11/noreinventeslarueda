@@ -158,8 +158,6 @@ export default async function LibraryDetailPage({
     notFound()
   }
 
-  const shareUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/libraries/${library.id}?locale=${locale}`
-
   return (
     <Layout locale={locale}>
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -174,13 +172,10 @@ export default async function LibraryDetailPage({
         categoryName={library.category.name}
         deprecated={library.deprecated}
         communityVotesSum={library.communityVotesSum}
-        upvotes={library.votes.upvotes}
-        downvotes={library.votes.downvotes}
-        shareUrl={shareUrl}
         locale={locale}
       />
       <RelatedLibraries categoryId={library.category.id} currentLibraryId={library.id} locale={locale} />
-      <InstallationGuide libraryName={library.name} githubUrl={library.githubUrl} locale={locale} />
+      <InstallationGuide libraryName={library.name} locale={locale} />
       </div>
     </Layout>
   )

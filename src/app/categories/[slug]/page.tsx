@@ -71,8 +71,7 @@ export async function generateMetadata({
 
 async function getCategoryLibraries(
   slug: string,
-  locale: 'es' | 'en',
-  page: number = 1
+  locale: 'es' | 'en'
 ): Promise<{ libraries: Library[]; category?: Category }> {
   try {
     const categoriesRef = collection(db, COLLECTIONS.CATEGORIES)
@@ -170,10 +169,9 @@ export default async function CategoryDetailPage({
   searchParams: { locale?: string; page?: string }
 }) {
   const locale = (searchParams.locale as 'es' | 'en') || 'es'
-  const page = parseInt(searchParams.page as string) || 1
   const trans = getTranslation(locale)
 
-  const { libraries } = await getCategoryLibraries(params.slug, locale, page)
+  const { libraries } = await getCategoryLibraries(params.slug, locale)
 
   const categoryName = params.slug
     .split('-')
