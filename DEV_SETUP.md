@@ -33,7 +33,13 @@
    npx prisma migrate dev --name init
    ```
 
-5. **Start development server**:
+5. **Seed database with initial data**:
+   ```bash
+   npx tsc prisma/seed.ts --outDir prisma --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck --strict false
+   node prisma/seed.js
+   ```
+
+6. **Start development server**:
    ```bash
    npm run dev
    ```
@@ -42,14 +48,54 @@
 
 ### Database Setup
 
-Initialize Prisma with PostgreSQL:
+Initialize Prisma with PostgreSQL (uses DATABASE_URL from `.env.local`):
 
 ```bash
 # Create migration and apply it
 npx prisma migrate dev --name init
 
+# Alternative: Reset database and reapply all migrations
+npx prisma migrate reset --force
+
 # View database in Prisma Studio
 npx prisma studio
+```
+
+### Seeding the Database
+
+After migrations are applied, populate the database with initial data:
+
+```bash
+# Compile the seed script from TypeScript to JavaScript
+npx tsc prisma/seed.ts --outDir prisma --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck --strict false
+
+# Run the seed script
+node prisma/seed.js
+```
+
+**What gets seeded:**
+- **7 Technology Categories** with Spanish/English names:
+  - Frontend (🎨) - Client-side web development
+  - Backend (⚙️) - Server-side web development
+  - Databases (💾) - Database systems and ORMs
+  - Mobile (📱) - Mobile app development
+  - DevOps (🚀) - CI/CD and deployment
+  - Testing (✅) - Testing frameworks
+  - Tools (🛠️) - Developer tools
+
+**Seed script location:** `prisma/seed.ts`  
+**Compiled to:** `prisma/seed.js`
+
+#### Quick Database Reset & Seed
+
+If you need a fresh database:
+
+```bash
+# Reset and reapply migrations (deletes all data)
+npx prisma migrate reset --force
+
+# Recompile and run seed
+npx tsc prisma/seed.ts --outDir prisma --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck --strict false && node prisma/seed.js
 ```
 
 ### Testing

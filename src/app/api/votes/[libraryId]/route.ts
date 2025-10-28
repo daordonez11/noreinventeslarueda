@@ -11,7 +11,7 @@ export const revalidate = 0 // No caching for votes
  * Includes total upvotes, downvotes, and user's vote if authenticated
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { libraryId: string } }
 ) {
   try {
@@ -24,8 +24,12 @@ export async function GET(
     })
 
     // Calculate breakdown
-    const breakdown = votes.reduce(
-      (acc, vote) => {
+    interface VoteBreakdown {
+      upvotes: number
+      downvotes: number
+    }
+    const breakdown: VoteBreakdown = votes.reduce(
+      (acc: VoteBreakdown, vote: any) => {
         if (vote.value === 1) acc.upvotes++
         else if (vote.value === -1) acc.downvotes++
         return acc

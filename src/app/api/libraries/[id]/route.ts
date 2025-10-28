@@ -38,8 +38,12 @@ export async function GET(
     }
 
     // Calculate vote breakdown
-    const voteBreakdown = library.votes.reduce(
-      (acc, vote) => {
+    interface VoteBreakdown {
+      upvotes: number
+      downvotes: number
+    }
+    const voteBreakdown: VoteBreakdown = library.votes.reduce(
+      (acc: VoteBreakdown, vote: any) => {
         if (vote.value === 1) acc.upvotes++
         else if (vote.value === -1) acc.downvotes++
         return acc

@@ -33,7 +33,7 @@ model User {
 // Category model for organizing libraries
 model Category {
   id             String    @id @default(cuid())
-  slug           String    @unique // 'frontend', 'backend', 'databases'
+  slug           String    @unique(map: "Category_slug_key") // 'frontend', 'backend', 'databases'
   nameEs         String    // Spanish name
   nameEn         String    // English name
   descriptionEs  String?   // Spanish description
@@ -46,7 +46,6 @@ model Category {
   // Relations
   libraries      Library[]
 
-  @@unique([slug])
   @@index([displayOrder])
   @@map("Category")
 }
@@ -82,7 +81,6 @@ model Library {
   @@index([curationScore(sort: Desc)])
   @@index([deprecatedAt])
   @@index([lastCommitDate(sort: Desc)])
-  @@fulltext([name, descriptionEs]) // Full-text search index
   @@map("Library")
 }
 

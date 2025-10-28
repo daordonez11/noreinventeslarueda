@@ -94,7 +94,7 @@ export async function syncGitHubLibraries() {
                 descriptionEs: repo.description ?? '',
                 descriptionEn: repo.description ?? '',
                 githubUrl: repo.htmlUrl,
-                githubId: String(repo.id),
+                githubId: BigInt(repo.id),
                 stars: repo.stars,
                 forks: repo.forksCount,
                 language: repo.language,
