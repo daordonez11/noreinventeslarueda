@@ -28,7 +28,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, locale = 'es' }) => {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 group">
               <span className="text-3xl font-bold">
-                <span className="inline-block transform group-hover:scale-110 transition-transform duration-300">
+                <span className="inline-block transform group-hover:scale-110 transition-transform duration-300" aria-hidden="true">
                   ⚙️
                 </span>
               </span>
