@@ -4,6 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { createIndexDelay } from '@/lib/animations/variants'
+import { getIconEmoji } from '@/lib/utils/iconMapper'
 
 export interface CategoryCardProps {
   name: string
@@ -51,6 +52,8 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
     },
   }
 
+  const displayIcon = getIconEmoji(icon)
+
   return (
     <Link href={`/categories/${slug}`}>
       <motion.div
@@ -63,7 +66,7 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
         data-testid="category-card"
       >
         {/* Icon */}
-        <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">{icon}</div>
+        <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">{displayIcon}</div>
 
         {/* Title */}
         <h3 className="text-xl font-bold text-slate-900 mb-2">{name}</h3>

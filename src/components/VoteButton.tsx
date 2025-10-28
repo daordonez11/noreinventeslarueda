@@ -38,6 +38,7 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
 
     try {
       const idToken = await firebaseUser.getIdToken()
+      const userId = firebaseUser.uid
       
       if (userVote === value) {
         const response = await fetch(`/api/votes/${libraryId}`, {
@@ -46,6 +47,7 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${idToken}`
           },
+          body: JSON.stringify({ userId }),
         })
 
         if (!response.ok) {
@@ -61,6 +63,8 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
         setUserVote(null)
       } else {
         const idToken = await firebaseUser.getIdToken()
+        const userId = firebaseUser.uid
+        
         const response = await fetch('/api/votes', {
           method: 'POST',
           headers: { 
@@ -70,6 +74,7 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
           body: JSON.stringify({
             libraryId,
             value,
+            userId,
           }),
         })
 

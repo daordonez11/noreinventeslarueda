@@ -1,4 +1,7 @@
 import { MetadataRoute } from 'next'
+import { db } from '@/lib/firebase/config'
+import { collection, getDocs, query, orderBy } from 'firebase/firestore'
+import { COLLECTIONS } from '@/lib/firebase/collections'
 
 interface Category {
   id: string
@@ -8,17 +11,18 @@ interface Category {
 
 async function getCategories(): Promise<Category[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-    const response = await fetch(`${baseUrl}/api/categories`, {
-      next: { revalidate: 3600 },
+    const categoriesRef = collection(db, COLLECTIONS.CATEGORIES)
+    const q = query(categoriesRef, orderBy('displayOrder', 'asc'))
+    const categoriesSnapshot = await getDocs(q)
+
+    return categoriesSnapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        slug: data.slug,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
+      }
     })
-
-    if (!response.ok) {
-      return []
-    }
-
-    const data = await response.json()
-    return Array.isArray(data) ? data : data.data || []
   } catch {
     return []
   }

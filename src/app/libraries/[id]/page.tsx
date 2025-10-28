@@ -5,8 +5,11 @@ import Layout from '@/components/Layout/Layout'
 import LibraryDetail from '@/components/LibraryDetail/LibraryDetail'
 import RelatedLibraries from '@/components/RelatedLibraries'
 import InstallationGuide from '@/components/InstallationGuide'
+import { db } from '@/lib/firebase/config'
+import { collection, doc, getDoc, getDocs, query, where, limit } from 'firebase/firestore'
+import { COLLECTIONS } from '@/lib/firebase/collections'
 
-export const revalidate = 3600 // ISR: revalidate every hour
+export const revalidate = 3600
 
 interface Library {
   id: string
@@ -31,22 +34,52 @@ interface Library {
   }
 }
 
-async function getLibrary(id: string): Promise<Library | null> {
+async function getLibrary(id: string, locale: 'es' | 'en' = 'es'): Promise<Library | null> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-    const response = await fetch(`${baseUrl}/api/libraries/${id}`, {
-      next: { revalidate: 3600 },
-    })
+    const libraryRef = doc(db, COLLECTIONS.LIBRARIES, id)
+    const libraryDoc = await getDoc(libraryRef)
 
-    if (!response.ok) {
-      console.error(`Failed to fetch library: ${response.status}`)
+    if (!libraryDoc.exists()) {
       return null
     }
 
-    const data: Library = await response.json()
-    return data || null
+    const libraryData = libraryDoc.data()
+
+    const categoryRef = doc(db, COLLECTIONS.CATEGORIES, libraryData.categoryId)
+    const categoryDoc = await getDoc(categoryRef)
+    const categoryData = categoryDoc.exists() ? categoryDoc.data() : null
+
+    const votesRef = collection(db, COLLECTIONS.VOTES)
+    const votesQuery = query(votesRef, where('libraryId', '==', id))
+    const votesSnapshot = await getDocs(votesQuery)
+
+    const upvotes = votesSnapshot.docs.filter(doc => doc.data().value === 1).length
+    const downvotes = votesSnapshot.docs.filter(doc => doc.data().value === -1).length
+
+    return {
+      id: libraryDoc.id,
+      name: libraryData.name,
+      description: locale === 'en' ? libraryData.descriptionEn || libraryData.descriptionEs : libraryData.descriptionEs,
+      githubUrl: libraryData.githubUrl,
+      stars: libraryData.stars || 0,
+      forks: libraryData.forks || 0,
+      language: libraryData.language,
+      lastCommitDate: libraryData.lastCommitDate?.toDate?.()?.toISOString?.() || libraryData.lastCommitDate,
+      category: categoryData ? {
+        id: categoryDoc.id,
+        slug: categoryData.slug,
+        name: locale === 'en' ? categoryData.nameEn : categoryData.nameEs,
+      } : { id: '', slug: '', name: '' },
+      deprecated: !!libraryData.deprecatedAt,
+      communityVotesSum: libraryData.communityVotesSum || 0,
+      votes: {
+        upvotes,
+        downvotes,
+        total: upvotes - downvotes,
+      },
+    }
   } catch (error) {
-    console.error('Error fetching library:', error)
+    console.error('Error fetching library from Firestore:', error)
     return null
   }
 }
@@ -98,20 +131,12 @@ export async function generateMetadata({
 
 export async function generateStaticParams() {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-    const response = await fetch(`${baseUrl}/api/libraries?limit=100`, {
-      next: { revalidate: 3600 },
-    })
+    const librariesRef = collection(db, COLLECTIONS.LIBRARIES)
+    const q = query(librariesRef, limit(100))
+    const librariesSnapshot = await getDocs(q)
 
-    if (!response.ok) {
-      return []
-    }
-
-    const data = await response.json()
-    const libraries = data.data || []
-
-    return libraries.map((lib: Library) => ({
-      id: lib.id,
+    return librariesSnapshot.docs.map(doc => ({
+      id: doc.id,
     }))
   } catch (error) {
     console.error('Error generating static params:', error)
@@ -127,7 +152,7 @@ export default async function LibraryDetailPage({
   searchParams: { locale?: string }
 }) {
   const locale = (searchParams.locale as 'es' | 'en') || 'es'
-  const library = await getLibrary(params.id)
+  const library = await getLibrary(params.id, locale)
 
   if (!library) {
     notFound()
@@ -149,73 +174,13 @@ export default async function LibraryDetailPage({
         categoryName={library.category.name}
         deprecated={library.deprecated}
         communityVotesSum={library.communityVotesSum}
+        upvotes={library.votes.upvotes}
+        downvotes={library.votes.downvotes}
+        shareUrl={shareUrl}
         locale={locale}
-      />        {/* Social Share Section */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">
-              {locale === 'es' ? 'Compartir' : 'Share'}
-            </h2>
-            <div className="flex flex-wrap gap-4">
-              {/* Twitter Share */}
-              <a
-                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
-                  `${library.name} - ${library.description.substring(0, 100)}...`
-                )}&url=${encodeURIComponent(shareUrl)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-semibold"
-              >
-                <span>𝕏</span>
-                {locale === 'es' ? 'Twitter' : 'Twitter'}
-              </a>
-
-              {/* LinkedIn Share */}
-              <a
-                href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-              >
-                <span>in</span>
-                LinkedIn
-              </a>
-
-              {/* Email Share */}
-              <a
-                href={`mailto:?subject=${encodeURIComponent(library.name)}&body=${encodeURIComponent(
-                  `Check out ${library.name} on No Reinventes la Rueda: ${shareUrl}`
-                )}`}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-semibold"
-              >
-                <span>✉️</span>
-                {locale === 'es' ? 'Email' : 'Email'}
-              </a>
-
-              {/* Copy Link */}
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(shareUrl)
-                  alert(locale === 'es' ? 'Enlace copiado' : 'Link copied')
-                }}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors font-semibold"
-              >
-                <span>🔗</span>
-                {locale === 'es' ? 'Copiar enlace' : 'Copy link'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Installation Guide */}
-        <InstallationGuide libraryName={library.name} locale={locale} />
-
-        {/* Related Libraries */}
-        <RelatedLibraries
-          categoryId={library.category.id}
-          currentLibraryId={library.id}
-          locale={locale}
-        />
+      />
+      <RelatedLibraries categoryId={library.category.id} currentLibraryId={library.id} locale={locale} />
+      <InstallationGuide libraryName={library.name} githubUrl={library.githubUrl} locale={locale} />
       </div>
     </Layout>
   )

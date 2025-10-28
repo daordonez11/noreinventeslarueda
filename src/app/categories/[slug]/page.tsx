@@ -3,8 +3,11 @@ import { Metadata } from 'next'
 import Layout from '@/components/Layout/Layout'
 import LibraryCard from '@/components/LibraryCard'
 import { getTranslation } from '@/lib/i18n/config'
+import { db } from '@/lib/firebase/config'
+import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore'
+import { COLLECTIONS } from '@/lib/firebase/collections'
 
-export const revalidate = 3600 // ISR: revalidate every hour
+export const revalidate = 3600
 
 interface Category {
   id: string
@@ -37,26 +40,25 @@ export async function generateMetadata({
   const locale = (searchParams.locale as 'es' | 'en') || 'es'
   
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-    const response = await fetch(
-      `${baseUrl}/api/libraries?categorySlug=${params.slug}&limit=1&locale=${locale}`,
-      { next: { revalidate: 3600 } }
-    )
-    
-    if (!response.ok) {
+    const categoriesRef = collection(db, COLLECTIONS.CATEGORIES)
+    const q = query(categoriesRef, where('slug', '==', params.slug), limit(1))
+    const categorySnapshot = await getDocs(q)
+
+    if (categorySnapshot.empty) {
       return {
         title: `Category | No Reinventes la Rueda`,
       }
     }
 
-    const categoryName = params.slug.charAt(0).toUpperCase() + params.slug.slice(1)
+    const categoryData = categorySnapshot.docs[0].data()
+    const categoryName = locale === 'en' ? categoryData.nameEn : categoryData.nameEs
 
     return {
       title: `${categoryName} | No Reinventes la Rueda`,
-      description: `Discover the best ${categoryName} libraries and frameworks.`,
+      description: locale === 'en' ? categoryData.descriptionEn : categoryData.descriptionEs,
       openGraph: {
         title: categoryName,
-        description: `Discover the best ${categoryName} libraries.`,
+        description: locale === 'en' ? categoryData.descriptionEn : categoryData.descriptionEs,
         type: 'website',
       },
     }
@@ -73,40 +75,76 @@ async function getCategoryLibraries(
   page: number = 1
 ): Promise<{ libraries: Library[]; category?: Category }> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-    const response = await fetch(
-      `${baseUrl}/api/libraries?categorySlug=${slug}&page=${page}&limit=20&locale=${locale}&sort=curation_score`,
-      { next: { revalidate: 3600 } }
-    )
+    const categoriesRef = collection(db, COLLECTIONS.CATEGORIES)
+    const q = query(categoriesRef, where('slug', '==', slug), limit(1))
+    const categorySnapshot = await getDocs(q)
 
-    if (!response.ok) {
+    if (categorySnapshot.empty) {
       return { libraries: [] }
     }
 
-    const data = await response.json()
-    return {
-      libraries: Array.isArray(data) ? data : data.data || data.libraries || [],
-      category: data.category,
+    const categoryDoc = categorySnapshot.docs[0]
+    const categoryData = categoryDoc.data()
+    const categoryId = categoryDoc.id
+
+    const librariesRef = collection(db, COLLECTIONS.LIBRARIES)
+    const librariesQuery = query(
+      librariesRef,
+      where('categoryId', '==', categoryId),
+      where('deprecatedAt', '==', null),
+      orderBy('curationScore', 'desc'),
+      limit(20)
+    )
+    const librariesSnapshot = await getDocs(librariesQuery)
+
+    const libraries = librariesSnapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        name: data.name,
+        description: locale === 'en' ? data.descriptionEn || data.descriptionEs : data.descriptionEs,
+        stars: data.stars || 0,
+        forks: data.forks || 0,
+        language: data.language,
+        lastCommitDate: data.lastCommitDate?.toDate?.()?.toISOString?.() || data.lastCommitDate,
+        communityVotesSum: data.communityVotesSum || 0,
+        deprecatedAt: data.deprecatedAt,
+      }
+    })
+
+    const category = {
+      id: categoryDoc.id,
+      slug: categoryData.slug,
+      name: locale === 'en' ? categoryData.nameEn : categoryData.nameEs,
+      description: locale === 'en' ? categoryData.descriptionEn : categoryData.descriptionEs,
+      icon: categoryData.icon,
+      displayOrder: categoryData.displayOrder,
     }
+
+    return { libraries, category }
   } catch (error) {
-    console.error('Error fetching libraries:', error)
+    console.error('Error fetching libraries from Firestore:', error)
     return { libraries: [] }
   }
 }
 
 async function getCategories(): Promise<Category[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-    const response = await fetch(`${baseUrl}/api/categories`, {
-      next: { revalidate: 3600 },
+    const categoriesRef = collection(db, COLLECTIONS.CATEGORIES)
+    const q = query(categoriesRef, orderBy('displayOrder', 'asc'))
+    const categoriesSnapshot = await getDocs(q)
+
+    return categoriesSnapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        slug: data.slug,
+        name: data.nameEs,
+        description: data.descriptionEs,
+        icon: data.icon,
+        displayOrder: data.displayOrder,
+      }
     })
-
-    if (!response.ok) {
-      return []
-    }
-
-    const data = await response.json()
-    return Array.isArray(data) ? data : data.data || []
   } catch {
     return []
   }
@@ -144,7 +182,6 @@ export default async function CategoryDetailPage({
   return (
     <Layout locale={locale}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header */}
         <div className="mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">
             {categoryName}
@@ -156,7 +193,6 @@ export default async function CategoryDetailPage({
           </p>
         </div>
 
-        {/* Libraries Grid */}
         {libraries.length > 0 ? (
           <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -178,7 +214,6 @@ export default async function CategoryDetailPage({
               ))}
             </div>
 
-            {/* Pagination Info */}
             <div className="text-center py-8 text-gray-600">
               <p>
                 {locale === 'es'

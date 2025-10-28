@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { adminAuth, adminDb } from '@/lib/firebase/admin'
+import { db } from '@/lib/firebase/config'
+import { collection, query, where, getDocs, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore'
 import { COLLECTIONS } from '@/lib/firebase/collections'
 
 export async function GET(
@@ -8,43 +9,19 @@ export async function GET(
 ) {
   try {
     const { libraryId } = params
-    const authHeader = request.headers.get('authorization')
 
-    const votesRef = adminDb.collection(COLLECTIONS.VOTES)
-    const votesSnapshot = await votesRef
-      .where('libraryId', '==', libraryId)
-      .get()
+    const votesRef = collection(db, COLLECTIONS.VOTES)
+    const votesQuery = query(votesRef, where('libraryId', '==', libraryId))
+    const votesSnapshot = await getDocs(votesQuery)
 
     const upvotes = votesSnapshot.docs.filter(doc => doc.data().value === 1).length
     const downvotes = votesSnapshot.docs.filter(doc => doc.data().value === -1).length
-
-    let userVote = null
-
-    if (authHeader?.startsWith('Bearer ')) {
-      try {
-        const idToken = authHeader.split('Bearer ')[1]
-        const decodedToken = await adminAuth.verifyIdToken(idToken)
-        const userId = decodedToken.uid
-
-        const userVoteQuery = await votesRef
-          .where('userId', '==', userId)
-          .where('libraryId', '==', libraryId)
-          .limit(1)
-          .get()
-
-        if (!userVoteQuery.empty) {
-          userVote = userVoteQuery.docs[0].data().value
-        }
-      } catch (error) {
-        console.error('Error verifying token:', error)
-      }
-    }
 
     return NextResponse.json({
       upvotes,
       downvotes,
       total: upvotes - downvotes,
-      userVote,
+      userVote: null,
     })
   } catch (error) {
     console.error('GET /api/votes/[libraryId] error:', error)
@@ -64,31 +41,34 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const idToken = authHeader.split('Bearer ')[1]
-    const decodedToken = await adminAuth.verifyIdToken(idToken)
-    const userId = decodedToken.uid
+    const { userId } = await request.json()
 
-    const votesRef = adminDb.collection(COLLECTIONS.VOTES)
-    const voteQuery = await votesRef
-      .where('userId', '==', userId)
-      .where('libraryId', '==', libraryId)
-      .limit(1)
-      .get()
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 })
+    }
 
-    if (voteQuery.empty) {
+    const votesRef = collection(db, COLLECTIONS.VOTES)
+    const voteQuery = query(
+      votesRef,
+      where('userId', '==', userId),
+      where('libraryId', '==', libraryId)
+    )
+    const voteSnapshot = await getDocs(voteQuery)
+
+    if (voteSnapshot.empty) {
       return NextResponse.json({ error: 'Vote not found' }, { status: 404 })
     }
 
-    const voteDoc = voteQuery.docs[0]
+    const voteDoc = voteSnapshot.docs[0]
     const oldValue = voteDoc.data().value
-    await voteDoc.ref.delete()
+    await deleteDoc(doc(db, COLLECTIONS.VOTES, voteDoc.id))
 
-    const libraryRef = adminDb.collection(COLLECTIONS.LIBRARIES).doc(libraryId)
-    const libraryDoc = await libraryRef.get()
+    const libraryRef = doc(db, COLLECTIONS.LIBRARIES, libraryId)
+    const libraryDoc = await getDoc(libraryRef)
     
-    if (libraryDoc.exists) {
+    if (libraryDoc.exists()) {
       const currentSum = libraryDoc.data()?.communityVotesSum ?? 0
-      await libraryRef.update({ communityVotesSum: currentSum - oldValue })
+      await updateDoc(libraryRef, { communityVotesSum: currentSum - oldValue })
     }
 
     return new NextResponse(null, { status: 204 })
