@@ -2,6 +2,9 @@
 const withNextIntl = require('next-intl/plugin')(
   './src/i18n/request.ts'
 );
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
 
 const nextConfig = {
   reactStrictMode: true,
@@ -9,6 +12,7 @@ const nextConfig = {
   poweredByHeader: false,
   compress: true,
   generateEtags: true,
+  productionBrowserSourceMaps: false,
   
   // Image optimization
   images: {
@@ -74,4 +78,4 @@ const nextConfig = {
   },
 };
 
-module.exports = withNextIntl(nextConfig);
+module.exports = withBundleAnalyzer(withNextIntl(nextConfig));
