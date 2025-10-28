@@ -12,7 +12,7 @@ const config = {
   endOfLine: 'lf',
   // Next.js specific
   plugins: ['prettier-plugin-tailwindcss'],
-  tailwindConfig: './tailwind.config.js',
+  tailwindConfig: './tailwind.config.ts',
   // Sort imports
   importOrder: [
     '^react',
