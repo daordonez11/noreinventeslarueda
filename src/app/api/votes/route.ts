@@ -1,178 +1,75 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { PrismaClient } from '@prisma/client'
-import { authOptions } from '@/app/api/auth/[...nextauth]'
-
-const prisma = new PrismaClient()
-
-// Rate limiting: Simple in-memory store for demo (in production, use Redis)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
-const RATE_LIMIT_WINDOW = 60 * 1000 // 1 minute
-const RATE_LIMIT_MAX = 500 // 500 requests per minute
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now()
-  const userLimit = rateLimitMap.get(userId)
-
-  if (!userLimit || now > userLimit.resetTime) {
-    rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW })
-    return true
-  }
-
-  if (userLimit.count >= RATE_LIMIT_MAX) {
-    return false
-  }
-
-  userLimit.count++
-  return true
-}
+import { adminAuth, adminDb } from '@/lib/firebase/admin'
+import { COLLECTIONS } from '@/lib/firebase/collections'
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check rate limit
-    if (!checkRateLimit(session.user.email)) {
-      return NextResponse.json(
-        { error: 'Too many requests. Rate limit exceeded (500/min)' },
-        { status: 429, headers: { 'Retry-After': '60' } }
-      )
+    const idToken = authHeader.split('Bearer ')[1]
+    const decodedToken = await adminAuth.verifyIdToken(idToken)
+    const userId = decodedToken.uid
+
+    const { libraryId, value } = await request.json()
+
+    if (!libraryId || (value !== 1 && value !== -1)) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
     }
 
-    // Parse request body
-    const body = await request.json()
-    const { libraryId, value } = body
+    const votesRef = adminDb.collection(COLLECTIONS.VOTES)
+    const existingVoteQuery = await votesRef
+      .where('userId', '==', userId)
+      .where('libraryId', '==', libraryId)
+      .limit(1)
+      .get()
 
-    // Validate input
-    if (!libraryId || typeof libraryId !== 'string') {
-      return NextResponse.json(
-        { error: 'Invalid libraryId' },
-        { status: 400 }
-      )
-    }
-
-    if (typeof value !== 'number' || ![1, -1].includes(value)) {
-      return NextResponse.json(
-        { error: 'Invalid vote value. Must be 1 or -1' },
-        { status: 400 }
-      )
-    }
-
-    // Get user (should exist from OAuth signin event)
-    let user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    })
-
-    if (!user) {
-      // Fallback: create user if not found
-      user = await prisma.user.create({
-        data: {
-          email: session.user.email,
-          name: session.user.name || 'User',
-          oauthProvider: 'github', // Default
-          oauthId: session.user.email, // Use email as fallback
-        },
-      })
-    }
-
-    // Verify library exists
-    const library = await prisma.library.findUnique({
-      where: { id: libraryId },
-    })
-
-    if (!library) {
-      return NextResponse.json(
-        { error: 'Library not found' },
-        { status: 404 }
-      )
-    }
-
-    // Check for existing vote
-    const existingVote = await prisma.vote.findUnique({
-      where: {
-        unique_user_library_vote: {
-          userId: user.id,
-          libraryId: libraryId,
-        },
-      },
-    })
-
-    let vote
+    let voteId: string
     let oldValue = 0
 
-    if (existingVote) {
-      // Update existing vote
-      oldValue = existingVote.value
-      vote = await prisma.vote.update({
-        where: { id: existingVote.id },
-        data: { value },
+    if (!existingVoteQuery.empty) {
+      const existingVote = existingVoteQuery.docs[0]
+      voteId = existingVote.id
+      oldValue = existingVote.data().value
+      await votesRef.doc(voteId).update({
+        value,
+        updatedAt: new Date(),
       })
     } else {
-      // Create new vote
-      vote = await prisma.vote.create({
-        data: {
-          userId: user.id,
-          libraryId: libraryId,
-          value,
-        },
+      const newVoteRef = await votesRef.add({
+        userId,
+        libraryId,
+        value,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       })
+      voteId = newVoteRef.id
     }
 
-    // Update communityVotesSum
-    // Calculate new sum: remove old vote, add new vote
-    const voteDifference = value - oldValue
-    const updatedLibrary = await prisma.library.update({
-      where: { id: libraryId },
-      data: {
-        communityVotesSum: {
-          increment: voteDifference,
-        },
-      },
+    const libraryRef = adminDb.collection(COLLECTIONS.LIBRARIES).doc(libraryId)
+    const libraryDoc = await libraryRef.get()
+    
+    if (libraryDoc.exists) {
+      const currentSum = libraryDoc.data()?.communityVotesSum ?? 0
+      const newSum = currentSum - oldValue + value
+      await libraryRef.update({ communityVotesSum: newSum })
+    }
+
+    const votesSnapshot = await votesRef.where('libraryId', '==', libraryId).get()
+    const upvotes = votesSnapshot.docs.filter(doc => doc.data().value === 1).length
+    const downvotes = votesSnapshot.docs.filter(doc => doc.data().value === -1).length
+
+    return NextResponse.json({
+      id: voteId,
+      userId,
+      libraryId,
+      value,
+      counts: { upvotes, downvotes, total: upvotes - downvotes },
     })
-
-    // Get updated vote counts
-    const votes = await prisma.vote.groupBy({
-      by: ['libraryId', 'value'],
-      where: { libraryId: libraryId },
-      _count: {
-        id: true,
-      },
-    })
-
-    const upvotes = votes.find((v: { value: number }) => v.value === 1)?._count.id ?? 0
-    const downvotes = votes.find((v: { value: number }) => v.value === -1)?._count.id ?? 0
-
-    return NextResponse.json(
-      {
-        vote,
-        votes: {
-          upvotes,
-          downvotes,
-          total: upvotes + downvotes,
-        },
-        communityVotesSum: updatedLibrary.communityVotesSum,
-      },
-      {
-        status: existingVote ? 200 : 201,
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-        },
-      }
-    )
   } catch (error) {
     console.error('POST /api/votes error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  } finally {
-    await prisma.$disconnect()
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { adminDb } from '@/lib/firebase/admin'
+import { COLLECTIONS } from '@/lib/firebase/collections'
 
 export const revalidate = 86400 // Cache for 24 hours
 
@@ -14,12 +13,16 @@ export async function GET(request: NextRequest) {
   try {
     const locale = request.nextUrl.searchParams.get('locale') ?? 'es'
 
-    // Query all categories
-    const categories = await prisma.category.findMany({
-      orderBy: {
-        displayOrder: 'asc',
-      },
-    })
+    // Query all categories from Firestore
+    const categoriesSnapshot = await adminDb
+      .collection(COLLECTIONS.CATEGORIES)
+      .orderBy('displayOrder', 'asc')
+      .get()
+
+    const categories = categoriesSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
 
     // Transform response based on locale
     const response = categories.map((cat: any) => ({
@@ -44,7 +47,5 @@ export async function GET(request: NextRequest) {
       { error: 'Internal server error' },
       { status: 500 }
     )
-  } finally {
-    await prisma.$disconnect()
   }
 }

@@ -17,15 +17,14 @@
     "test:e2e": "playwright test",
     "test:lighthouse": "lighthouse http://localhost:3000 --chrome-flags=\"--headless\" --output-path=./lighthouse-report.html",
     "analyze": "ANALYZE=true npm run build",
-    "db:migrate": "prisma migrate dev",
-    "db:push": "prisma db push",
-    "db:seed": "node prisma/seed.js",
-    "db:studio": "prisma studio"
+    "firestore:seed": "node firestore-seed.js"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@octokit/rest": "^20.0.0",
     "@prisma/client": "^5.7.0",
+    "firebase": "^12.4.0",
+    "firebase-admin": "^13.5.0",
     "framer-motion": "^10.16.0",
     "next": "^14.0.0",
     "next-auth": "^4.24.0",
@@ -47,6 +46,7 @@
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@types/uuid": "^11.0.0",
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
     "autoprefixer": "^10.4.16",
@@ -59,7 +59,8 @@
     "prettier": "^3.1.0",
     "prisma": "^5.7.0",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "uuid": "^13.0.0"
   },
   "engines": {
     "node": ">=20.0.0",

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useAuth } from '@/lib/firebase/auth-context'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 
@@ -20,7 +20,7 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
   initialUserVote = null,
   locale = 'es',
 }) => {
-  const { data: session } = useSession()
+  const { user, firebaseUser } = useAuth()
   const [upvotes, setUpvotes] = useState(initialUpvotes)
   const [downvotes, setDownvotes] = useState(initialDownvotes)
   const [userVote, setUserVote] = useState<1 | -1 | null>(initialUserVote)
@@ -28,8 +28,7 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
   const [showSignInHint, setShowSignInHint] = useState(false)
 
   const handleVote = async (value: 1 | -1) => {
-    // If not authenticated, show sign in hint
-    if (!session?.user) {
+    if (!firebaseUser) {
       setShowSignInHint(true)
       setTimeout(() => setShowSignInHint(false), 3000)
       return
@@ -38,11 +37,15 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
     setIsLoading(true)
 
     try {
-      // If clicking the same vote, remove it
+      const idToken = await firebaseUser.getIdToken()
+      
       if (userVote === value) {
         const response = await fetch(`/api/votes/${libraryId}`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
         })
 
         if (!response.ok) {
@@ -57,10 +60,13 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
         }
         setUserVote(null)
       } else {
-        // Otherwise, add or switch vote
+        const idToken = await firebaseUser.getIdToken()
         const response = await fetch('/api/votes', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
           body: JSON.stringify({
             libraryId,
             value,
@@ -74,20 +80,19 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
         const data = await response.json()
 
         // Update local state
-        setUpvotes(data.votes.upvotes)
-        setDownvotes(data.votes.downvotes)
+        setUpvotes(data.counts.upvotes)
+        setDownvotes(data.counts.downvotes)
         setUserVote(value)
       }
     } catch (error) {
       console.error('Vote error:', error)
-      // Could show error toast here
     } finally {
       setIsLoading(false)
     }
   }
 
   const totalVotes = upvotes - downvotes
-  const votingDisabled = !session?.user || isLoading
+  const votingDisabled = !firebaseUser || isLoading
 
   return (
     <div className="flex flex-col gap-2">

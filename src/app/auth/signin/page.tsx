@@ -1,45 +1,52 @@
 'use client'
 
-import React, { Suspense, useState } from 'react'
+import React, { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { signIn } from 'next-auth/react'
+import { useAuth } from '@/lib/firebase/auth-context'
 import Link from 'next/link'
 import Layout from '@/components/Layout/Layout'
+import { motion } from 'framer-motion'
 
 function SignInContent() {
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/'
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { signInWithGoogle, signInWithGithub, user } = useAuth()
+  const [isLoading, setIsLoading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
 
-  // Handle OAuth sign-in
+  React.useEffect(() => {
+    if (user) {
+      window.location.href = callbackUrl
+    }
+  }, [user, callbackUrl])
+
   const handleSignIn = async (provider: 'github' | 'google') => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const result = await signIn(provider, {
-        callbackUrl: callbackUrl,
-        redirect: true,
-      })
-
-      if (result?.error) {
-        setError(`Failed to sign in with ${provider}. Please try again.`)
+      if (provider === 'github') {
+        await signInWithGithub()
+      } else {
+        await signInWithGoogle()
       }
-    } catch (err) {
-      setError('An error occurred during sign in. Please try again.')
+    } catch (err: any) {
+      setError(`Failed to sign in with ${provider}. Please try again.`)
       console.error('Sign in error:', err)
     } finally {
       setIsLoading(false)
     }
   }
+
   return (
     <Layout locale="es">
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full">
-          {/* Card Container */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-md w-full"
+        >
           <div className="bg-white rounded-lg border border-slate-200 shadow-lg p-8">
-            {/* Header */}
             <div className="mb-8 text-center">
               <h1 className="text-3xl font-bold text-slate-900 mb-2">
                 Inicia Sesión
@@ -49,16 +56,13 @@ function SignInContent() {
               </p>
             </div>
 
-            {/* Error Message */}
             {error && (
               <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
                 <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
 
-            {/* Sign In Buttons */}
             <div className="space-y-4 mb-8">
-              {/* GitHub Sign In */}
               <button
                 onClick={() => handleSignIn('github')}
                 disabled={isLoading}
@@ -68,7 +72,6 @@ function SignInContent() {
                 {isLoading ? 'Conectando...' : 'Continuar con GitHub'}
               </button>
 
-              {/* Google Sign In */}
               <button
                 onClick={() => handleSignIn('google')}
                 disabled={isLoading}
@@ -79,7 +82,6 @@ function SignInContent() {
               </button>
             </div>
 
-            {/* Divider */}
             <div className="relative mb-8">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-slate-200"></div>
@@ -89,14 +91,12 @@ function SignInContent() {
               </div>
             </div>
 
-            {/* Guest Continue */}
             <Link href="/">
               <button className="w-full px-4 py-3 bg-brand-100 text-brand-700 rounded-lg font-semibold hover:bg-brand-200 transition-colors">
                 Ver como Invitado
               </button>
             </Link>
 
-            {/* Info Section */}
             <div className="mt-8 pt-8 border-t border-slate-200">
               <p className="text-xs text-slate-600 text-center mb-4">
                 ¿Por qué iniciar sesión?
@@ -117,7 +117,6 @@ function SignInContent() {
               </ul>
             </div>
 
-            {/* Privacy Note */}
             <p className="mt-6 text-xs text-slate-500 text-center">
               Protegemos tu privacidad. Lee nuestra{' '}
               <Link href="/privacy" className="text-brand-600 hover:underline">
@@ -127,13 +126,12 @@ function SignInContent() {
             </p>
           </div>
 
-          {/* Back Link */}
           <div className="mt-6 text-center">
             <Link href="/" className="text-sm text-slate-600 hover:text-slate-900">
               ← Volver al inicio
             </Link>
           </div>
-        </div>
+        </motion.div>
       </div>
     </Layout>
   )
