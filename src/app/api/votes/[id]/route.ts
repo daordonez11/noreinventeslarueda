@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getVoteCounts } from '@/lib/firebase/votes'
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
