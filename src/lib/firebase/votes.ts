@@ -43,6 +43,11 @@ export async function getUserVote(userId: string, libraryId: string): Promise<Vo
 
 export async function getVoteCounts(libraryId: string): Promise<{ upvotes: number; downvotes: number }> {
   try {
+    // Note: This function performs a full collection scan filtered by libraryId.
+    // For better performance at scale, consider using Firestore aggregation queries (count() method)
+    // or maintaining denormalized counts on the library document itself.
+    // The communityVotesSum field on libraries already tracks net votes, but this function
+    // recalculates from scratch to provide separate upvote/downvote counts.
     const votesRef = collection(db, COLLECTIONS.VOTES)
     const q = query(votesRef, where('libraryId', '==', libraryId))
     const snapshot = await getDocs(q)
@@ -106,6 +111,10 @@ export async function castVote(userId: string, libraryId: string, value: 1 | -1)
       })
     } else {
       // If library doesn't exist, create it with the vote sum
+      // Note: This creates a partial library document with only vote-related fields.
+      // This is acceptable because the full library data is managed separately,
+      // and this allows votes to be cast even if there's a timing issue with library creation.
+      // The merge option ensures we don't overwrite existing fields if they exist.
       transaction.set(libraryRef, {
         communityVotesSum: value,
         updatedAt: new Date()

@@ -26,15 +26,21 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
   const [userVote, setUserVote] = useState<1 | -1 | null>(initialUserVote)
   const [isLoading, setIsLoading] = useState(false)
   const [showSignInHint, setShowSignInHint] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Load user's vote when user changes
   useEffect(() => {
     if (user) {
-      getUserVote(user.uid, libraryId).then(vote => {
-        if (vote) {
-          setUserVote(vote.value)
-        }
-      })
+      getUserVote(user.uid, libraryId)
+        .then(vote => {
+          if (vote) {
+            setUserVote(vote.value)
+          }
+        })
+        .catch(error => {
+          console.error('Failed to fetch user vote:', error)
+          setUserVote(null)
+        })
     } else {
       setUserVote(null)
     }
@@ -93,6 +99,13 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
       const counts = await getVoteCounts(libraryId)
       setUpvotes(counts.upvotes)
       setDownvotes(counts.downvotes)
+      // Show error message to user
+      setErrorMessage(
+        locale === 'es'
+          ? 'Error al procesar tu voto. Los conteos han sido actualizados.'
+          : 'Failed to process your vote. Vote counts have been refreshed.'
+      )
+      setTimeout(() => setErrorMessage(null), 5000)
     } finally {
       setIsLoading(false)
     }
@@ -154,12 +167,30 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center"
+          aria-label={
+            locale === 'es'
+              ? 'Inicia sesión en el menú superior para votar'
+              : 'Sign in from the menu above to vote'
+          }
         >
           <span className="text-sm text-blue-700">
             {locale === 'es'
-              ? '👆 Inicia sesión en el menú superior para votar'
-              : '👆 Sign in from the menu above to vote'}
+              ? 'Inicia sesión en el menú superior para votar'
+              : 'Sign in from the menu above to vote'}
           </span>
+        </motion.div>
+      )}
+
+      {/* Error Message */}
+      {errorMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="bg-red-50 border border-red-200 rounded-lg p-3 text-center"
+          role="alert"
+        >
+          <span className="text-sm text-red-700">{errorMessage}</span>
         </motion.div>
       )}
 

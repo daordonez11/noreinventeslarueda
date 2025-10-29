@@ -6,8 +6,11 @@ import LibraryDetail from '@/components/LibraryDetail/LibraryDetail'
 import RelatedLibraries from '@/components/RelatedLibraries'
 import InstallationGuide from '@/components/InstallationGuide'
 import VoteButton from '@/components/VoteButton'
+import { db } from '@/lib/firebase/config'
+import { doc, getDoc } from 'firebase/firestore'
+import { COLLECTIONS } from '@/lib/firebase/collections'
+import { getVoteCounts } from '@/lib/firebase/votes'
 
-export const revalidate = 3600
 export const dynamic = 'force-dynamic'
 
 interface Library {
@@ -35,27 +38,28 @@ interface Library {
 
 async function getLibrary(id: string, locale: 'es' | 'en' = 'es'): Promise<Library | null> {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/libraries/${id}`, {
-      cache: 'no-store',
-    })
+    // Fetch library directly from Firestore
+    const libraryRef = doc(db, COLLECTIONS.LIBRARIES, id)
+    const libraryDoc = await getDoc(libraryRef)
 
-    if (!response.ok) {
+    if (!libraryDoc.exists()) {
       return null
     }
 
-    const libraryData = await response.json()
+    const libraryData = libraryDoc.data()
 
-    const categoryResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/categories/${libraryData.categoryId}`,
-      { cache: 'no-store' }
-    )
-    const categoryData = categoryResponse.ok ? await categoryResponse.json() : null
+    // Fetch category directly from Firestore
+    let categoryData = null
+    if (libraryData.categoryId) {
+      const categoryRef = doc(db, COLLECTIONS.CATEGORIES, libraryData.categoryId)
+      const categoryDoc = await getDoc(categoryRef)
+      if (categoryDoc.exists()) {
+        categoryData = categoryDoc.data()
+      }
+    }
 
-    const votesResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/votes/${id}`,
-      { cache: 'no-store' }
-    )
-    const votesData = votesResponse.ok ? await votesResponse.json() : { upvotes: 0, downvotes: 0, total: 0 }
+    // Fetch votes directly from Firestore
+    const votesData = await getVoteCounts(id)
 
     return {
       id: id,
@@ -76,7 +80,7 @@ async function getLibrary(id: string, locale: 'es' | 'en' = 'es'): Promise<Libra
       votes: {
         upvotes: votesData.upvotes,
         downvotes: votesData.downvotes,
-        total: votesData.total,
+        total: votesData.upvotes - votesData.downvotes,
       },
     }
   } catch (error) {
