@@ -3,7 +3,6 @@ import { db } from '@/lib/firebase/config'
 import { collection, query, where, getDocs, limit, doc, getDoc } from 'firebase/firestore'
 import { COLLECTIONS } from '@/lib/firebase/collections'
 
-export const runtime = 'edge'
 export const revalidate = 3600
 
 export async function GET(request: NextRequest) {

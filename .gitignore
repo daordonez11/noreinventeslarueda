@@ -73,3 +73,4 @@ logs/
 # Prisma
 prisma/migrations/*
 !prisma/migrations/.gitkeep
+firestore.rules
