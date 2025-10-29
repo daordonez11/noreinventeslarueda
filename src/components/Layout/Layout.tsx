@@ -45,7 +45,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, locale = 'es' }) => {
               </span>
               <div className="hidden sm:block">
                 <span className="text-lg font-bold bg-gradient-to-r from-brand-300 via-accent-cyan to-brand-400 bg-clip-text text-transparent">
-                  {locale === 'es' ? 'No Reinventes' : 'No Reinvent'}
+                  {locale === 'es' ? 'No Reinventes' : "Don't Reinvent"}
                 </span>
                 <p className="text-xs text-brand-200/70 font-medium">
                   {locale === 'es' ? 'la Rueda' : 'the Wheel'}

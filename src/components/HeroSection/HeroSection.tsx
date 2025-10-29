@@ -18,10 +18,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   ctaLearn,
 }) => {
   return (
-    <div className="text-center mb-16 relative">
+    <div className="text-center mb-16 relative overflow-visible">
       {/* Animated Spinning Gear Background */}
       <motion.div
-        className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
         style={{ opacity: 0.12 }}
         animate={{ rotate: 360 }}
         transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
