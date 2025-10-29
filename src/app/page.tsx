@@ -85,7 +85,6 @@ export default async function Home({
           subtitle={trans.hero.subtitle}
           ctaStart={locale === 'es' ? '🚀 Comenzar Ahora' : '🚀 Get Started'}
           ctaLearn={locale === 'es' ? 'Saber Más' : 'Learn More'}
-          locale={locale}
         />
 
         {/* Category Grid */}

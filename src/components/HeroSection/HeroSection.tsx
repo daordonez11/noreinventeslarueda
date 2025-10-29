@@ -9,7 +9,6 @@ interface HeroSectionProps {
   subtitle: string
   ctaStart: string
   ctaLearn: string
-  locale: 'es' | 'en'
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
@@ -17,7 +16,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   subtitle,
   ctaStart,
   ctaLearn,
-  locale,
 }) => {
   return (
     <div className="text-center mb-16 relative">
@@ -28,7 +26,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         animate={{ rotate: 360 }}
         transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
       >
-        <div className="text-[40rem] md:text-[60rem] leading-none">⚙️</div>
+        <div className="text-[25rem] md:text-[35rem] leading-none">⚙️</div>
       </motion.div>
 
       {/* Hero Content */}
