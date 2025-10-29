@@ -8,7 +8,7 @@ import InstallationGuide from '@/components/InstallationGuide'
 import VoteButton from '@/components/VoteButton'
 
 export const revalidate = 3600
-export const dynamic = 'force-dynamic'
+export const dynamicParams = true // Generate pages on-demand for paths not in generateStaticParams
 
 interface Library {
   id: string
