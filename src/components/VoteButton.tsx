@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/firebase/auth-context'
-import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { castVote, removeVote, getUserVote, getVoteCounts } from '@/lib/firebase/votes'
 
 interface VoteButtonProps {
   libraryId: string
@@ -27,6 +27,19 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
   const [isLoading, setIsLoading] = useState(false)
   const [showSignInHint, setShowSignInHint] = useState(false)
 
+  // Load user's vote when user changes
+  useEffect(() => {
+    if (user) {
+      getUserVote(user.uid, libraryId).then(vote => {
+        if (vote) {
+          setUserVote(vote.value)
+        }
+      })
+    } else {
+      setUserVote(null)
+    }
+  }, [user, libraryId])
+
   const handleVote = async (value: 1 | -1) => {
     if (!user) {
       setShowSignInHint(true)
@@ -37,23 +50,12 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
     setIsLoading(true)
 
     try {
-      const idToken = await user.getIdToken()
       const userId = user.uid
       
       if (userVote === value) {
-        const response = await fetch(`/api/votes/${libraryId}`, {
-          method: 'DELETE',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`
-          },
-          body: JSON.stringify({ userId }),
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to remove vote')
-        }
-
+        // Remove vote
+        await removeVote(userId, libraryId)
+        
         // Update local state
         if (value === 1) {
           setUpvotes(Math.max(0, upvotes - 1))
@@ -62,35 +64,35 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
         }
         setUserVote(null)
       } else {
-        const idToken = await user.getIdToken()
-        const userId = user.uid
+        // Cast vote
+        await castVote(userId, libraryId, value)
         
-        const response = await fetch('/api/votes', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`
-          },
-          body: JSON.stringify({
-            libraryId,
-            value,
-            userId,
-          }),
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to cast vote')
-        }
-
-        const data = await response.json()
-
         // Update local state
-        setUpvotes(data.counts.upvotes)
-        setDownvotes(data.counts.downvotes)
+        if (userVote !== null) {
+          // User changed their vote
+          if (userVote === 1) {
+            setUpvotes(Math.max(0, upvotes - 1))
+            setDownvotes(downvotes + 1)
+          } else {
+            setDownvotes(Math.max(0, downvotes - 1))
+            setUpvotes(upvotes + 1)
+          }
+        } else {
+          // User cast a new vote
+          if (value === 1) {
+            setUpvotes(upvotes + 1)
+          } else {
+            setDownvotes(downvotes + 1)
+          }
+        }
         setUserVote(value)
       }
     } catch (error) {
       console.error('Vote error:', error)
+      // Refresh vote counts on error
+      const counts = await getVoteCounts(libraryId)
+      setUpvotes(counts.upvotes)
+      setDownvotes(counts.downvotes)
     } finally {
       setIsLoading(false)
     }
@@ -151,37 +153,22 @@ export const VoteButton: React.FC<VoteButtonProps> = ({
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between"
+          className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center"
         >
           <span className="text-sm text-blue-700">
             {locale === 'es'
-              ? 'Inicia sesión para votar en esta librería'
-              : 'Sign in to vote on this library'}
+              ? '👆 Inicia sesión en el menú superior para votar'
+              : '👆 Sign in from the menu above to vote'}
           </span>
-          <Link
-            href={`/auth/signin?callbackUrl=${encodeURIComponent(window.location.pathname)}`}
-            className="text-sm font-semibold text-blue-600 hover:text-blue-700 underline"
-          >
-            {locale === 'es' ? 'Iniciar sesión' : 'Sign in'}
-          </Link>
         </motion.div>
-      )}
-
-      {/* Unauthenticated State Message */}
-      {!!showSignInHint && (
-        <p className="text-xs text-slate-500 text-center">
-          {locale === 'es'
-            ? 'Inicia sesión para votar'
-            : 'Sign in to vote'}
-        </p>
       )}
 
       {/* Authenticated State Message */}
       {user && userVote === null && (
         <p className="text-xs text-slate-500 text-center">
           {locale === 'es'
-            ? 'Se el primero en votar'
-            : 'Be the first to vote'}
+            ? '¿Esta librería es útil?'
+            : 'Is this library useful?'}
         </p>
       )}
 

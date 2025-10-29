@@ -3,8 +3,6 @@ import { db } from '@/lib/firebase/config'
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
 import { COLLECTIONS } from '@/lib/firebase/collections'
 
-export const runtime = 'edge'
-
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
