@@ -6,6 +6,9 @@ import LibraryDetail from '@/components/LibraryDetail/LibraryDetail'
 import RelatedLibraries from '@/components/RelatedLibraries'
 import InstallationGuide from '@/components/InstallationGuide'
 import VoteButton from '@/components/VoteButton'
+import { db } from '@/lib/firebase/config'
+import { collection, doc, getDoc, getDocs, query, where, limit } from 'firebase/firestore'
+import { COLLECTIONS } from '@/lib/firebase/collections'
 
 export const revalidate = 3600
 export const dynamicParams = true // Generate pages on-demand for paths not in generateStaticParams
@@ -35,52 +38,50 @@ interface Library {
 
 async function getLibrary(id: string, locale: 'es' | 'en' = 'es'): Promise<Library | null> {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/libraries/${id}`, {
-      cache: 'no-store',
-    })
+    const libraryRef = doc(db, COLLECTIONS.LIBRARIES, id)
+    const libraryDoc = await getDoc(libraryRef)
 
-    if (!response.ok) {
+    if (!libraryDoc.exists()) {
       return null
     }
 
-    const libraryData = await response.json()
+    const libraryData = libraryDoc.data()
 
-    const categoryResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/categories/${libraryData.categoryId}`,
-      { cache: 'no-store' }
-    )
-    const categoryData = categoryResponse.ok ? await categoryResponse.json() : null
+    const categoryRef = doc(db, COLLECTIONS.CATEGORIES, libraryData.categoryId)
+    const categoryDoc = await getDoc(categoryRef)
+    const categoryData = categoryDoc.exists() ? categoryDoc.data() : null
 
-    const votesResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/votes/${id}`,
-      { cache: 'no-store' }
-    )
-    const votesData = votesResponse.ok ? await votesResponse.json() : { upvotes: 0, downvotes: 0, total: 0 }
+    const votesRef = collection(db, COLLECTIONS.VOTES)
+    const votesQuery = query(votesRef, where('libraryId', '==', id))
+    const votesSnapshot = await getDocs(votesQuery)
+
+    const upvotes = votesSnapshot.docs.filter(doc => doc.data().value === 1).length
+    const downvotes = votesSnapshot.docs.filter(doc => doc.data().value === -1).length
 
     return {
-      id: id,
+      id: libraryDoc.id,
       name: libraryData.name,
       description: locale === 'en' ? libraryData.descriptionEn || libraryData.descriptionEs : libraryData.descriptionEs,
       githubUrl: libraryData.githubUrl,
       stars: libraryData.stars || 0,
       forks: libraryData.forks || 0,
       language: libraryData.language,
-      lastCommitDate: libraryData.lastCommitDate,
+      lastCommitDate: libraryData.lastCommitDate?.toDate?.()?.toISOString?.() || libraryData.lastCommitDate,
       category: categoryData ? {
-        id: libraryData.categoryId,
+        id: categoryDoc.id,
         slug: categoryData.slug,
         name: locale === 'en' ? categoryData.nameEn : categoryData.nameEs,
       } : { id: '', slug: '', name: '' },
       deprecated: !!libraryData.deprecatedAt,
       communityVotesSum: libraryData.communityVotesSum || 0,
       votes: {
-        upvotes: votesData.upvotes,
-        downvotes: votesData.downvotes,
-        total: votesData.total,
+        upvotes,
+        downvotes,
+        total: upvotes - downvotes,
       },
     }
   } catch (error) {
-    console.error('Error fetching library:', error)
+    console.error('Error fetching library from Firestore:', error)
     return null
   }
 }
@@ -131,7 +132,18 @@ export async function generateMetadata({
 }
 
 export async function generateStaticParams() {
-  return []
+  try {
+    const librariesRef = collection(db, COLLECTIONS.LIBRARIES)
+    const q = query(librariesRef, limit(100))
+    const librariesSnapshot = await getDocs(q)
+
+    return librariesSnapshot.docs.map(doc => ({
+      id: doc.id,
+    }))
+  } catch (error) {
+    console.error('Error generating static params:', error)
+    return []
+  }
 }
 
 export default async function LibraryDetailPage({
