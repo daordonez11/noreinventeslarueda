@@ -28,6 +28,12 @@ export const esTranslations = {
     noCategories: 'No hay categorías disponibles',
   },
 
+  // Hero Section
+  hero: {
+    title: 'Descubre las Mejores Librerías y Frameworks',
+    subtitle: 'Recomendaciones curadas por la comunidad • Siempre actualizadas • En español',
+  },
+
   // Libraries
   libraries: {
     title: 'Librerías',
