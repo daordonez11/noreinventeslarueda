@@ -1,8 +1,10 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import Particles, { initParticlesEngine } from '@tsparticles/react'
+import { loadSlim } from '@tsparticles/slim'
+import type { ISourceOptions } from '@tsparticles/engine'
 
 interface HeroSectionProps {
   title: string
@@ -17,17 +19,92 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   ctaStart,
   ctaLearn,
 }) => {
+  const [init, setInit] = useState(false)
+
+  useEffect(() => {
+    initParticlesEngine(async (engine) => {
+      await loadSlim(engine)
+    }).then(() => {
+      setInit(true)
+    })
+  }, [])
+
+  const particlesOptions: ISourceOptions = {
+    background: {
+      color: {
+        value: 'transparent',
+      },
+    },
+    fpsLimit: 60,
+    particles: {
+      color: {
+        value: ['#3b82f6', '#60a5fa', '#2563eb', '#1d4ed8'], // Blue shades
+      },
+      links: {
+        enable: false,
+      },
+      move: {
+        enable: true,
+        speed: 1,
+        direction: 'none',
+        random: true,
+        straight: false,
+        outModes: {
+          default: 'out',
+        },
+      },
+      number: {
+        density: {
+          enable: true,
+          width: 800,
+          height: 800,
+        },
+        value: 30,
+      },
+      opacity: {
+        value: { min: 0.1, max: 0.3 },
+        animation: {
+          enable: true,
+          speed: 0.5,
+          sync: false,
+        },
+      },
+      shape: {
+        type: 'polygon',
+        options: {
+          polygon: {
+            sides: 6, // Hexagon
+          },
+        },
+      },
+      size: {
+        value: { min: 20, max: 60 },
+      },
+      rotate: {
+        value: 0,
+        direction: 'random',
+        animation: {
+          enable: true,
+          speed: 2,
+          sync: false,
+        },
+      },
+    },
+    detectRetina: true,
+  }
+
   return (
-    <div className="text-center mb-16 relative overflow-visible">
-      {/* Animated Spinning Gear Background */}
-      <motion.div
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-        style={{ opacity: 0.12 }}
-        animate={{ rotate: 360 }}
-        transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
-      >
-        <div className="text-[25rem] md:text-[35rem] leading-none">⚙️</div>
-      </motion.div>
+    <div className="text-center mb-16 relative">
+      {/* Blue Hexagons Background with tsParticles */}
+      {init && (
+        <div className="absolute inset-0 pointer-events-none">
+          <Particles
+            id="tsparticles"
+            options={particlesOptions}
+            className="absolute inset-0"
+          />
+        </div>
+      )}
 
       {/* Hero Content */}
       <div className="relative z-10">
