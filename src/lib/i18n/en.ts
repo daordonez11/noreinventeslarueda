@@ -28,6 +28,12 @@ export const enTranslations = {
     noCategories: 'No categories available',
   },
 
+  // Hero Section
+  hero: {
+    title: 'Discover the Best Technology Libraries',
+    subtitle: 'Community-ranked • Always up-to-date • Spanish-first',
+  },
+
   // Libraries
   libraries: {
     title: 'Libraries',

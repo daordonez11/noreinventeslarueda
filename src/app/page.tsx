@@ -1,8 +1,8 @@
 import React from 'react'
 import { Metadata } from 'next'
-import Link from 'next/link'
 import Layout from '@/components/Layout/Layout'
 import CategoryCard from '@/components/CategoryCard'
+import HeroSection from '@/components/HeroSection'
 import { getTranslation } from '@/lib/i18n/config'
 import { db } from '@/lib/firebase/config'
 import { collection, getDocs, orderBy, query } from 'firebase/firestore'
@@ -31,11 +31,11 @@ export async function generateMetadata({
   const trans = getTranslation(locale)
 
   return {
-    title: `${trans.categories.title} | No Reinventes la Rueda`,
-    description: trans.categories.subtitle,
+    title: `${trans.hero.title} | No Reinventes la Rueda`,
+    description: trans.hero.subtitle,
     openGraph: {
-      title: trans.categories.title,
-      description: trans.categories.subtitle,
+      title: trans.hero.title,
+      description: trans.hero.subtitle,
       type: 'website',
     },
   }
@@ -78,34 +78,14 @@ export default async function Home({
 
   return (
     <Layout locale={locale}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 overflow-visible">
         {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            <span className="bg-gradient-to-r from-brand-400 via-accent-cyan to-brand-300 bg-clip-text text-transparent">
-              {trans.categories.title}
-            </span>
-          </h1>
-          <p className="text-xl md:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-8">
-            {trans.categories.subtitle}
-          </p>
-
-          {/* Call to Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
-            <Link
-              href="/auth/signin"
-              className="px-8 py-4 rounded-xl text-lg font-bold bg-gradient-to-r from-brand-500 to-brand-600 text-white hover:from-brand-600 hover:to-brand-700 shadow-xl shadow-brand-500/30 hover:shadow-brand-500/50 transition-all duration-200 transform hover:scale-105 flex items-center gap-2"
-            >
-              {locale === 'es' ? '🚀 Comenzar Ahora' : '🚀 Get Started'}
-            </Link>
-            <a
-              href="#about"
-              className="px-8 py-4 rounded-xl text-lg font-semibold border-2 border-slate-300 text-slate-700 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50 transition-all duration-200"
-            >
-              {locale === 'es' ? 'Saber Más' : 'Learn More'}
-            </a>
-          </div>
-        </div>
+        <HeroSection
+          title={trans.hero.title}
+          subtitle={trans.hero.subtitle}
+          ctaStart={locale === 'es' ? '🚀 Comenzar Ahora' : '🚀 Get Started'}
+          ctaLearn={locale === 'es' ? 'Saber Más' : 'Learn More'}
+        />
 
         {/* Category Grid */}
         {categories.length > 0 ? (
