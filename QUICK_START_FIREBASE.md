@@ -1,5 +1,9 @@
 # Quick Start Guide - Firebase Setup
 
+> [!NOTE]
+> **STATUS: COMPLETED** ✅
+> The steps in this guide have already been executed for this project. The application is fully configured with Firebase Authentication and Firestore. This document serves as a reference for the setup process.
+
 ## 🚀 Getting Started in 5 Minutes
 
 This project now uses **Firebase** instead of Prisma/PostgreSQL and NextAuth. Here's how to get it running:

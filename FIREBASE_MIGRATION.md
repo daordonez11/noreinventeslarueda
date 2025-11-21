@@ -1,5 +1,9 @@
 # Firebase Migration Guide
 
+> [!NOTE]
+> **STATUS: COMPLETED** ✅
+> The migration from Prisma/NextAuth to Firebase has been fully completed. This document serves as a reference for the architectural changes and setup steps that were performed.
+
 ## Overview
 
 This project has been migrated from **Prisma/PostgreSQL** with **NextAuth.js** to **Firebase Firestore** with **Firebase Authentication**.
